@@ -26,7 +26,10 @@ export const CalendarPage: React.FC = () => {
   }, [view]);
 
   const fetchData = async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     const h = await data.getHabits(user.uid);
     setHabits(h);
     
@@ -213,8 +216,21 @@ export const CalendarPage: React.FC = () => {
         )}
       </header>
 
-      {loading ? <div className="text-center py-20">Loading...</div> : (
-        view === 'daily' ? renderDaily() : renderWeekly()
+      {loading ? <div className="text-center py-20 font-bold text-black/20">Loading...</div> : (
+        !user ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <h1 className="text-2xl font-bold mb-4">Calendar</h1>
+            <p className="text-black/40 mb-8">Please sign in to view your calendar.</p>
+            <button 
+              onClick={() => window.location.href = '/settings'}
+              className="px-8 py-4 bg-black text-white rounded-2xl font-bold shadow-lg"
+            >
+              Go to Settings
+            </button>
+          </div>
+        ) : (
+          view === 'daily' ? renderDaily() : renderWeekly()
+        )
       )}
 
       <Modal

@@ -23,7 +23,10 @@ export const TodayPage: React.FC = () => {
   const weeklyKey = getWeeklyKey();
 
   const fetchData = async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     const [h, d, w] = await Promise.all([
       data.getHabits(user.uid),
       data.getPeriodDoc(user.uid, 'daily', dailyKey),
@@ -95,7 +98,22 @@ export const TodayPage: React.FC = () => {
     fetchData();
   };
 
-  if (loading) return <div className="flex justify-center pt-20">Loading...</div>;
+  if (loading) return <div className="flex justify-center pt-20 font-bold text-black/20">Loading...</div>;
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center pt-20 text-center">
+        <h1 className="text-2xl font-bold mb-4">Welcome to Dailio</h1>
+        <p className="text-black/40 mb-8">Please sign in to start tracking your habits.</p>
+        <button 
+          onClick={() => window.location.href = '/settings'}
+          className="px-8 py-4 bg-black text-white rounded-2xl font-bold shadow-lg"
+        >
+          Go to Settings
+        </button>
+      </div>
+    );
+  }
 
   const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 

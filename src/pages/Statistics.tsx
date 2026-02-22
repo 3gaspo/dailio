@@ -22,7 +22,10 @@ export const StatisticsPage: React.FC = () => {
   }, [view]);
 
   const fetchData = async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     const h = await data.getHabits(user.uid);
     setHabits(h);
     
@@ -120,6 +123,23 @@ export const StatisticsPage: React.FC = () => {
     if (validPeriods === 0) return 0;
     return Math.round((totalRatio / validPeriods) * 100);
   })();
+
+  if (loading) return <div className="text-center py-20 font-bold text-black/20">Loading...</div>;
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center pt-20 text-center">
+        <h1 className="text-2xl font-bold mb-4">Statistics</h1>
+        <p className="text-black/40 mb-8">Please sign in to view your statistics.</p>
+        <button 
+          onClick={() => window.location.href = '/settings'}
+          className="px-8 py-4 bg-black text-white rounded-2xl font-bold shadow-lg"
+        >
+          Go to Settings
+        </button>
+      </div>
+    );
+  }
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
