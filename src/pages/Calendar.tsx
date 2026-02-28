@@ -6,7 +6,7 @@ import { Habit, PeriodDoc } from '../types';
 import { ChevronLeft, ChevronRight, Plus, Trash2, Check } from 'lucide-react';
 import { Modal } from '../components/Modal';
 import { motion } from 'motion/react';
-import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, addMonths, subMonths, isSameMonth, isSameDay, startOfYear, endOfYear, eachWeekOfInterval, getISOWeek, getYear } from 'date-fns';
+import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, addMonths, subMonths, isSameMonth, isSameDay, startOfYear, endOfYear, eachWeekOfInterval, getISOWeek, getYear, isBefore, isAfter, startOfDay, isSameWeek } from 'date-fns';
 
 export const CalendarPage: React.FC = () => {
   const { user, data } = useApp();
@@ -119,8 +119,18 @@ export const CalendarPage: React.FC = () => {
           const key = getDailyKey(d);
           const stats = computePeriodStats(key, 'daily', habits, periodDocs[key] || null);
           const isCurrentMonth = isSameMonth(d, currentMonth);
-          const isToday = isSameDay(d, new Date());
+          const today = startOfDay(new Date());
+          const isToday = isSameDay(d, today);
+          const isPast = isBefore(d, today);
           const isDone = stats.to_do > 0 && stats.done === stats.to_do;
+          const isIncomplete = stats.to_do > 0 && stats.done < stats.to_do;
+
+          let cellColor = "bg-black/5 text-black/40";
+          if (isDone) {
+            if (isPast || isToday) cellColor = "bg-emerald-500 text-white";
+          } else if (isIncomplete) {
+            if (isPast) cellColor = "bg-red-500 text-white";
+          }
 
           return (
             <button
@@ -129,7 +139,7 @@ export const CalendarPage: React.FC = () => {
               className={cn(
                 "aspect-square rounded-xl flex flex-col items-center justify-center transition-all relative",
                 !isCurrentMonth && "opacity-20",
-                isDone ? "bg-emerald-500 text-white" : "bg-black/5 text-black/40",
+                cellColor,
                 isToday && !isDone && "ring-2 ring-black ring-inset"
               )}
             >
@@ -154,8 +164,19 @@ export const CalendarPage: React.FC = () => {
         {weeks.map(w => {
           const key = getWeeklyKey(w);
           const stats = computePeriodStats(key, 'weekly', habits, periodDocs[key] || null);
+          const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+          const isCurrentWeek = isSameWeek(w, new Date(), { weekStartsOn: 1 });
+          const isPastWeek = isBefore(w, currentWeekStart);
           const isDone = stats.to_do > 0 && stats.done === stats.to_do;
+          const isIncomplete = stats.to_do > 0 && stats.done < stats.to_do;
           const weekNum = getISOWeek(w);
+
+          let cellColor = "bg-black/5 text-black/40";
+          if (isDone) {
+            if (isPastWeek || isCurrentWeek) cellColor = "bg-emerald-500 text-white";
+          } else if (isIncomplete) {
+            if (isPastWeek) cellColor = "bg-red-500 text-white";
+          }
 
           return (
             <button
@@ -163,7 +184,7 @@ export const CalendarPage: React.FC = () => {
               onClick={() => setSelectedPeriod({ key, date: w })}
               className={cn(
                 "aspect-square rounded-xl flex flex-col items-center justify-center transition-all relative",
-                isDone ? "bg-emerald-500 text-white" : "bg-black/5 text-black/40"
+                cellColor
               )}
             >
               <span className="text-[10px] font-bold opacity-40 mb-0.5">W</span>

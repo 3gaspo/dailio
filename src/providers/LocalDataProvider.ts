@@ -27,6 +27,15 @@ export class LocalDataProvider implements DataProvider {
     }
   }
 
+  async updateHabitOrder(uid: string, habitId: string, order: number): Promise<void> {
+    const habits = await this.getHabits(uid);
+    const habit = habits.find(h => h.id === habitId);
+    if (habit) {
+      habit.order = order;
+      localStorage.setItem(this.getStorageKey(uid, 'habits'), JSON.stringify(habits));
+    }
+  }
+
   async getPeriodDoc(uid: string, periodicity: Periodicity, periodKey: string): Promise<PeriodDoc | null> {
     const key = this.getStorageKey(uid, `period_${periodicity}_${periodKey}`);
     const data = localStorage.getItem(key);

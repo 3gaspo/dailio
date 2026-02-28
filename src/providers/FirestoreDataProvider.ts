@@ -28,13 +28,18 @@ export class FirestoreDataProvider implements DataProvider {
   async addHabit(uid: string, habit: Omit<Habit, 'id'>): Promise<string> {
     const col = collection(this.db, 'users', uid, 'habits');
     const newDoc = doc(col);
-    await setDoc(newDoc, habit);
+    await setDoc(newDoc, { ...habit });
     return newDoc.id;
   }
 
   async setHabitDeletedFromPeriodKey(uid: string, habitId: string, periodKey: string): Promise<void> {
     const d = doc(this.db, 'users', uid, 'habits', habitId);
     await updateDoc(d, { deletedFromPeriodKey: periodKey });
+  }
+
+  async updateHabitOrder(uid: string, habitId: string, order: number): Promise<void> {
+    const d = doc(this.db, 'users', uid, 'habits', habitId);
+    await updateDoc(d, { order });
   }
 
   async getPeriodDoc(uid: string, periodicity: Periodicity, periodKey: string): Promise<PeriodDoc | null> {

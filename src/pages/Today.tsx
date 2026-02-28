@@ -3,9 +3,9 @@ import { useApp } from '../providers/AppProvider';
 import { getDailyKey, getWeeklyKey } from '../utils/dateUtils';
 import { computePeriodStats, PeriodStats } from '../utils/habitLogic';
 import { Habit, PeriodDoc } from '../types';
-import { Plus, Trash2, Check } from 'lucide-react';
+import { Plus, Trash2, Check, GripVertical } from 'lucide-react';
 import { Modal } from '../components/Modal';
-import { motion } from 'motion/react';
+import { motion, Reorder } from 'motion/react';
 
 export const TodayPage: React.FC = () => {
   const { user, data } = useApp();
@@ -55,6 +55,31 @@ export const TodayPage: React.FC = () => {
     fetchData();
   };
 
+  const handleReorder = async (newOrder: any[], periodicity: 'daily' | 'weekly') => {
+    if (!user) return;
+    // Only update order for recurring habits
+    const recurringOnly = newOrder.filter(h => !h.isOneOff);
+    await Promise.all(recurringOnly.map((h, index) => 
+      data.updateHabitOrder(user.uid, h.id, index)
+    ));
+    
+    // For one-off habits, if they were reordered, we'd need to update the PeriodDoc.
+    // But the request says "keeps that order (except from one-off habits that vanish)".
+    // This implies one-off habits don't need persistent ordering across days.
+    // However, for the current view, we should update the local state.
+    // If one-off habits were moved, we should update the PeriodDoc's oneOffHabits array.
+    
+    const doc = periodicity === 'daily' ? dailyDoc : weeklyDoc;
+    const key = periodicity === 'daily' ? dailyKey : weeklyKey;
+    const oneOffsOnly = newOrder.filter(h => h.isOneOff).map(h => ({ id: h.id, name: h.name }));
+    
+    if (oneOffsOnly.length > 0 || (doc?.oneOffHabits?.length || 0) > 0) {
+      await data.updatePeriodDoc(user.uid, periodicity, key, { oneOffHabits: oneOffsOnly });
+    }
+    
+    fetchData();
+  };
+
   const handleDelete = async (id: string, name: string, periodicity: 'daily' | 'weekly', isOneOff: boolean) => {
     if (!user) return;
     if (isOneOff) {
@@ -85,11 +110,17 @@ export const TodayPage: React.FC = () => {
         oneOffHabits: [...(doc?.oneOffHabits || []), newOneOff]
       });
     } else {
+      const currentHabits = await data.getHabits(user.uid);
+      const maxOrder = currentHabits
+        .filter(h => h.periodicity === newPeriodicity)
+        .reduce((max, h) => Math.max(max, h.order || 0), -1);
+      
       await data.addHabit(user.uid, {
         name: newName.trim(),
         periodicity: newPeriodicity,
         createdAt: new Date(),
-        deletedFromPeriodKey: null
+        deletedFromPeriodKey: null,
+        order: maxOrder + 1
       });
     }
 
@@ -126,32 +157,34 @@ export const TodayPage: React.FC = () => {
 
       <section className="mb-12">
         <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black/30 mb-6">Daily habits</h2>
-        <div className="space-y-3">
+        <Reorder.Group axis="y" values={dailyStats.habits} onReorder={(newOrder) => handleReorder(newOrder, 'daily')} className="space-y-3">
           {dailyStats.habits.map(h => (
-            <HabitRow 
-              key={h.id} 
-              habit={h} 
-              onToggle={() => handleToggle(h.id, 'daily', h.completed)}
-              onDelete={() => handleDelete(h.id, h.name, 'daily', h.isOneOff)}
-            />
+            <Reorder.Item key={h.id} value={h}>
+              <HabitRow 
+                habit={h} 
+                onToggle={() => handleToggle(h.id, 'daily', h.completed)}
+                onDelete={() => handleDelete(h.id, h.name, 'daily', h.isOneOff)}
+              />
+            </Reorder.Item>
           ))}
           {dailyStats.habits.length === 0 && <p className="text-black/20 italic text-sm">No daily habits for today</p>}
-        </div>
+        </Reorder.Group>
       </section>
 
       <section className="mb-12">
         <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black/30 mb-6">Weekly habits</h2>
-        <div className="space-y-3">
+        <Reorder.Group axis="y" values={weeklyStats.habits} onReorder={(newOrder) => handleReorder(newOrder, 'weekly')} className="space-y-3">
           {weeklyStats.habits.map(h => (
-            <HabitRow 
-              key={h.id} 
-              habit={h} 
-              onToggle={() => handleToggle(h.id, 'weekly', h.completed)}
-              onDelete={() => handleDelete(h.id, h.name, 'weekly', h.isOneOff)}
-            />
+            <Reorder.Item key={h.id} value={h}>
+              <HabitRow 
+                habit={h} 
+                onToggle={() => handleToggle(h.id, 'weekly', h.completed)}
+                onDelete={() => handleDelete(h.id, h.name, 'weekly', h.isOneOff)}
+              />
+            </Reorder.Item>
           ))}
           {weeklyStats.habits.length === 0 && <p className="text-black/20 italic text-sm">No weekly habits for this week</p>}
-        </div>
+        </Reorder.Group>
       </section>
 
       <button
@@ -230,7 +263,10 @@ export const TodayPage: React.FC = () => {
 
 const HabitRow: React.FC<{ habit: any; onToggle: () => void; onDelete: () => void }> = ({ habit, onToggle, onDelete }) => {
   return (
-    <div className="flex items-center group">
+    <div className="flex items-center group bg-white p-1 rounded-2xl">
+      <div className="p-2 text-black/10 group-hover:text-black/30 cursor-grab active:cursor-grabbing transition-colors">
+        <GripVertical size={20} />
+      </div>
       <button
         onClick={onToggle}
         className={cn(

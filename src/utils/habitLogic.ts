@@ -86,7 +86,7 @@ export const computePeriodStats = (
     if (periodDoc?.skippedHabitIds?.includes(h.id)) return false;
 
     return true;
-  });
+  }).sort((a, b) => (a.order || 0) - (b.order || 0));
 
   recurring.forEach(h => {
     habits.push({

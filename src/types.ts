@@ -8,6 +8,7 @@ export interface Habit {
   periodicity: Periodicity;
   createdAt: Date | Timestamp;
   deletedFromPeriodKey: string | null;
+  order?: number;
 }
 
 export interface OneOffHabit {
@@ -40,6 +41,7 @@ export interface DataProvider {
   getHabits: (uid: string) => Promise<Habit[]>;
   addHabit: (uid: string, habit: Omit<Habit, 'id'>) => Promise<string>;
   setHabitDeletedFromPeriodKey: (uid: string, habitId: string, periodKey: string) => Promise<void>;
+  updateHabitOrder: (uid: string, habitId: string, order: number) => Promise<void>;
   
   // Period Docs
   getPeriodDoc: (uid: string, periodicity: Periodicity, periodKey: string) => Promise<PeriodDoc | null>;

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../providers/AppProvider';
 import { motion } from 'motion/react';
-import { LogOut, Download, RotateCcw, User, Mail, Lock } from 'lucide-react';
+import { LogOut, Download, RotateCcw, User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { getDailyKey, getWeeklyKey } from '../utils/dateUtils';
 import { computePeriodStats } from '../utils/habitLogic';
 import { startOfYear, eachDayOfInterval } from 'date-fns';
@@ -10,6 +10,7 @@ export const SettingsPage: React.FC = () => {
   const { auth, data, user, isDevMode } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,13 +112,20 @@ export const SettingsPage: React.FC = () => {
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-black/20" size={20} />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full bg-white rounded-2xl py-4 pl-12 pr-4 outline-none focus:ring-2 ring-black/10 transition-all font-medium"
+                  className="w-full bg-white rounded-2xl py-4 pl-12 pr-12 outline-none focus:ring-2 ring-black/10 transition-all font-medium"
                   placeholder="••••••••"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-black/20 hover:text-black transition-colors"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
               </div>
             </div>
             {error && <p className="text-red-500 text-xs font-medium px-1">{error}</p>}
@@ -152,6 +160,18 @@ export const SettingsPage: React.FC = () => {
           </div>
 
           <button
+            onClick={() => auth.signOut()}
+            className="w-full flex items-center justify-between p-6 bg-black/5 rounded-[24px] hover:bg-black/10 transition-colors group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-white rounded-xl text-black group-hover:scale-110 transition-transform">
+                <LogOut size={20} />
+              </div>
+              <span className="font-bold">Disconnect / Sign out</span>
+            </div>
+          </button>
+
+          <button
             onClick={handleExport}
             disabled={loading}
             className="w-full flex items-center justify-between p-6 bg-black/5 rounded-[24px] hover:bg-black/10 transition-colors group"
@@ -166,29 +186,23 @@ export const SettingsPage: React.FC = () => {
 
           <button
             onClick={handleReset}
-            className="w-full flex items-center justify-between p-6 bg-black/5 rounded-[24px] hover:bg-red-50 transition-colors group"
+            className="w-full flex items-center justify-between p-6 bg-red-500/10 rounded-[24px] hover:bg-red-500 text-red-600 hover:text-white transition-all group"
           >
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-white rounded-xl text-black group-hover:scale-110 transition-transform">
+              <div className="p-3 bg-white rounded-xl text-red-600 group-hover:scale-110 transition-transform">
                 <RotateCcw size={20} />
               </div>
               <span className="font-bold">Reset data</span>
             </div>
           </button>
-
-          <button
-            onClick={() => auth.signOut()}
-            className="w-full flex items-center justify-between p-6 bg-black/5 rounded-[24px] hover:bg-black/10 transition-colors group"
-          >
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-white rounded-xl text-black group-hover:scale-110 transition-transform">
-                <LogOut size={20} />
-              </div>
-              <span className="font-bold">Disconnect / Sign out</span>
-            </div>
-          </button>
         </div>
       )}
+
+      <footer className="mt-20 pt-8 border-t border-black/5 text-center">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/20">
+          Dailio: version 0.1.0
+        </p>
+      </footer>
     </motion.div>
   );
 };
