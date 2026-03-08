@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { useApp } from '../providers/AppProvider';
 import { motion } from 'motion/react';
-import { LogOut, Download, RotateCcw, User, Mail, Lock, Eye, EyeOff, Trash2, History } from 'lucide-react';
+import { LogOut, Download, RotateCcw, User, Mail, Lock, Eye, EyeOff, Trash2, History, Heart } from 'lucide-react';
 import { getDailyKey, getWeeklyKey } from '../utils/dateUtils';
 import { computePeriodStats } from '../utils/habitLogic';
 import { startOfYear, eachDayOfInterval } from 'date-fns';
 import { Modal } from '../components/Modal';
 import { ResetOption } from '../types';
+import pkg from '../../package.json';
 
 export const SettingsPage: React.FC = () => {
-  const { auth, data, user, isDevMode } = useApp();
+  const { auth, data, user, isDevMode, categories, refreshCategories } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -17,6 +18,35 @@ export const SettingsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !newCategoryName.trim()) return;
+    setLoading(true);
+    try {
+      await data.addCategory(user.uid, newCategoryName.trim());
+      setNewCategoryName('');
+      await refreshCategories();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      await data.deleteCategory(user.uid, id);
+      await refreshCategories();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,6 +186,39 @@ export const SettingsPage: React.FC = () => {
         </section>
       ) : (
         <div className="space-y-4">
+          <section className="bg-black/5 p-8 rounded-[32px] mb-8">
+            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black/30 mb-6">Categories</h2>
+            <div className="space-y-3 mb-6">
+              {categories.map(cat => (
+                <div key={cat.id} className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm">
+                  <span className="font-bold">{cat.name}</span>
+                  <button 
+                    onClick={() => handleDeleteCategory(cat.id)}
+                    className="p-2 text-black/10 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <form onSubmit={handleAddCategory} className="flex gap-2">
+              <input 
+                type="text"
+                value={newCategoryName}
+                onChange={e => setNewCategoryName(e.target.value)}
+                placeholder="New category..."
+                className="flex-1 bg-white rounded-xl px-4 py-3 outline-none focus:ring-2 ring-black/5 font-medium text-sm"
+              />
+              <button 
+                type="submit"
+                disabled={loading || !newCategoryName.trim()}
+                className="bg-black text-white px-6 rounded-xl font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
+              >
+                Add
+              </button>
+            </form>
+          </section>
+
           <div className="bg-black/5 p-8 rounded-[32px] mb-8">
             <div className="flex items-center gap-4 mb-2">
               <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center text-white">
@@ -242,16 +305,35 @@ export const SettingsPage: React.FC = () => {
         </div>
       </Modal>
 
-      <footer className="mt-20 pt-8 border-t border-black/5 text-center">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/20">
-          Dailio: version 0.1.1
-        </p>
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/20 mt-1">
-          Gaspard Berthelier
-        </p>
-        <p className="text-[10px] font-bold tracking-[0.1em] text-black/20">
-          gberthelier.projet@gmail.com
-        </p>
+      <footer className="mt-20 pt-12 border-t border-black/5 flex flex-col items-center gap-3">
+        <div className="flex flex-col items-center gap-1">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/20">
+            Dailio: version {pkg.version}
+          </p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/20 mt-1">
+            Gaspard Berthelier
+          </p>
+          <p className="text-[10px] font-bold tracking-[0.1em] text-black/20">
+            gberthelier.projet@gmail.com
+          </p>
+        </div>
+        
+        <img 
+          src="/sakura.svg" 
+          alt="Sakura" 
+          className="w-40 h-40 opacity-30 grayscale hover:grayscale-0 transition-all duration-700 -my-4" 
+          referrerPolicy="no-referrer"
+        />
+
+        <a 
+          href="https://ko-fi.com/3gaspo" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white rounded-full text-[10px] font-bold uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg"
+        >
+          <Heart size={14} fill="currentColor" />
+          Support the project
+        </a>
       </footer>
     </motion.div>
   );

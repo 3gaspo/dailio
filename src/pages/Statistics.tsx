@@ -8,11 +8,12 @@ import { startOfMonth, eachDayOfInterval, eachWeekOfInterval, startOfYear, endOf
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 
 export const StatisticsPage: React.FC = () => {
-  const { user, data } = useApp();
+  const { user, data, categories } = useApp();
   const [view, setView] = useState<'daily' | 'weekly'>(() => {
     return (localStorage.getItem('dailio_stats_view') as 'daily' | 'weekly') || 'daily';
   });
   const [range, setRange] = useState<'month' | 'year'>('month');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [habits, setHabits] = useState<Habit[]>([]);
   const [periodDocs, setPeriodDocs] = useState<Record<string, PeriodDoc>>({});
   const [loading, setLoading] = useState(true);
@@ -57,7 +58,7 @@ export const StatisticsPage: React.FC = () => {
   }, [user, view]);
 
   const currentKey = view === 'daily' ? getDailyKey() : getWeeklyKey();
-  const currentStats = computePeriodStats(currentKey, view, habits, periodDocs[currentKey] || null);
+  const currentStats = computePeriodStats(currentKey, view, habits, periodDocs[currentKey] || null, selectedCategoryId);
 
   const getChartData = () => {
     const today = new Date();
@@ -68,7 +69,7 @@ export const StatisticsPage: React.FC = () => {
       const days = eachDayOfInterval({ start, end });
       return days.map(d => {
         const key = getDailyKey(d);
-        const stats = computePeriodStats(key, 'daily', habits, periodDocs[key] || null);
+        const stats = computePeriodStats(key, 'daily', habits, periodDocs[key] || null, selectedCategoryId);
         return {
           name: range === 'month' ? d.getDate().toString() : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
           ratio: stats.to_do === 0 ? 0 : Math.round(stats.ratio * 100),
@@ -79,7 +80,7 @@ export const StatisticsPage: React.FC = () => {
       const weeks = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
       return weeks.map(w => {
         const key = getWeeklyKey(w);
-        const stats = computePeriodStats(key, 'weekly', habits, periodDocs[key] || null);
+        const stats = computePeriodStats(key, 'weekly', habits, periodDocs[key] || null, selectedCategoryId);
         return {
           name: `W${key.split('-W')[1]}`,
           ratio: stats.to_do === 0 ? 0 : Math.round(stats.ratio * 100),
@@ -102,7 +103,7 @@ export const StatisticsPage: React.FC = () => {
       const days = eachDayOfInterval({ start, end });
       days.forEach(d => {
         const key = getDailyKey(d);
-        const stats = computePeriodStats(key, 'daily', habits, periodDocs[key] || null);
+        const stats = computePeriodStats(key, 'daily', habits, periodDocs[key] || null, selectedCategoryId);
         if (stats.to_do > 0) {
           totalRatio += stats.ratio;
           validPeriods++;
@@ -112,7 +113,7 @@ export const StatisticsPage: React.FC = () => {
       const weeks = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
       weeks.forEach(w => {
         const key = getWeeklyKey(w);
-        const stats = computePeriodStats(key, 'weekly', habits, periodDocs[key] || null);
+        const stats = computePeriodStats(key, 'weekly', habits, periodDocs[key] || null, selectedCategoryId);
         if (stats.to_do > 0) {
           totalRatio += stats.ratio;
           validPeriods++;
@@ -165,6 +166,29 @@ export const StatisticsPage: React.FC = () => {
           >
             Weekly
           </button>
+        </div>
+
+        <div className="mb-8 relative">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-black/30 mb-2 ml-1">Filter by category</div>
+          <div className="relative">
+            <select
+              value={selectedCategoryId}
+              onChange={(e) => setSelectedCategoryId(e.target.value)}
+              className="w-full bg-black/5 border-none rounded-2xl px-6 py-4 font-bold text-sm uppercase tracking-widest focus:ring-2 focus:ring-black/10 outline-none cursor-pointer appearance-none"
+            >
+              <option value="">All</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+            <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-black/20">
+              <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 1L6 6L11 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </div>
+          </div>
         </div>
       </header>
 

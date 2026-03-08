@@ -1,4 +1,4 @@
-import { DataProvider, Habit, PeriodDoc, Periodicity } from '../types';
+import { DataProvider, Habit, PeriodDoc, Periodicity, Category } from '../types';
 
 export class LocalDataProvider implements DataProvider {
   private getStorageKey(uid: string, type: string) {
@@ -67,5 +67,34 @@ export class LocalDataProvider implements DataProvider {
         }
       }
     });
+  }
+
+  async getCategories(uid: string): Promise<Category[]> {
+    const data = localStorage.getItem(this.getStorageKey(uid, 'categories'));
+    if (!data) {
+      const defaults = [
+        { id: 'cat_chores', name: 'Chores' },
+        { id: 'cat_sport', name: 'Sport' },
+        { id: 'cat_culture', name: 'Culture' },
+        { id: 'cat_work', name: 'Work' }
+      ];
+      localStorage.setItem(this.getStorageKey(uid, 'categories'), JSON.stringify(defaults));
+      return defaults;
+    }
+    return JSON.parse(data);
+  }
+
+  async addCategory(uid: string, name: string): Promise<string> {
+    const categories = await this.getCategories(uid);
+    const id = Math.random().toString(36).substr(2, 9);
+    categories.push({ id, name });
+    localStorage.setItem(this.getStorageKey(uid, 'categories'), JSON.stringify(categories));
+    return id;
+  }
+
+  async deleteCategory(uid: string, categoryId: string): Promise<void> {
+    const categories = await this.getCategories(uid);
+    const filtered = categories.filter(c => c.id !== categoryId);
+    localStorage.setItem(this.getStorageKey(uid, 'categories'), JSON.stringify(filtered));
   }
 }

@@ -2,6 +2,11 @@ import { Timestamp } from 'firebase/firestore';
 
 export type Periodicity = 'daily' | 'weekly';
 
+export interface Category {
+  id: string;
+  name: string;
+}
+
 export interface Habit {
   id: string;
   name: string;
@@ -9,11 +14,13 @@ export interface Habit {
   createdAt: Date | Timestamp;
   deletedFromPeriodKey: string | null;
   order?: number;
+  categoryId?: string;
 }
 
 export interface OneOffHabit {
   id: string;
   name: string;
+  categoryId?: string;
 }
 
 export interface PeriodDoc {
@@ -52,4 +59,9 @@ export interface DataProvider {
   
   // Actions
   resetData: (uid: string, option: ResetOption) => Promise<void>;
+
+  // Categories
+  getCategories: (uid: string) => Promise<Category[]>;
+  addCategory: (uid: string, name: string) => Promise<string>;
+  deleteCategory: (uid: string, categoryId: string) => Promise<void>;
 }

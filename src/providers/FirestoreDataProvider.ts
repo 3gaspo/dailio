@@ -1,6 +1,6 @@
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, deleteDoc, writeBatch } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
-import { DataProvider, Habit, PeriodDoc, Periodicity } from '../types';
+import { DataProvider, Habit, PeriodDoc, Periodicity, Category } from '../types';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -72,6 +72,9 @@ export class FirestoreDataProvider implements DataProvider {
     if (option === 'all') {
       const habits = await getDocs(collection(this.db, 'users', uid, 'habits'));
       habits.forEach(d => batch.delete(d.ref));
+      
+      const categories = await getDocs(collection(this.db, 'users', uid, 'categories'));
+      categories.forEach(d => batch.delete(d.ref));
     }
     
     const dailies = await getDocs(collection(this.db, 'users', uid, 'periodDaily'));
@@ -81,5 +84,36 @@ export class FirestoreDataProvider implements DataProvider {
     weeklies.forEach(d => batch.delete(d.ref));
     
     await batch.commit();
+  }
+
+  async getCategories(uid: string): Promise<Category[]> {
+    const col = collection(this.db, 'users', uid, 'categories');
+    const snap = await getDocs(col);
+    if (snap.empty) {
+      const defaults = ['Chores', 'Sport', 'Culture', 'Work'];
+      const batch = writeBatch(this.db);
+      const created: Category[] = [];
+      for (const name of defaults) {
+        const newDoc = doc(col);
+        const cat = { id: newDoc.id, name };
+        batch.set(newDoc, { name });
+        created.push(cat);
+      }
+      await batch.commit();
+      return created;
+    }
+    return snap.docs.map(d => ({ id: d.id, name: d.data().name } as Category));
+  }
+
+  async addCategory(uid: string, name: string): Promise<string> {
+    const col = collection(this.db, 'users', uid, 'categories');
+    const newDoc = doc(col);
+    await setDoc(newDoc, { name });
+    return newDoc.id;
+  }
+
+  async deleteCategory(uid: string, categoryId: string): Promise<void> {
+    const d = doc(this.db, 'users', uid, 'categories', categoryId);
+    await deleteDoc(d);
   }
 }

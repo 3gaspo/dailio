@@ -4,6 +4,7 @@ export interface ComputedHabit {
   id: string;
   name: string;
   isOneOff: boolean;
+  categoryId?: string;
 }
 
 export interface PeriodStats {
@@ -17,13 +18,15 @@ export const computePeriodStats = (
   periodKey: string,
   periodicity: 'daily' | 'weekly',
   allHabits: Habit[],
-  periodDoc: PeriodDoc | null
+  periodDoc: PeriodDoc | null,
+  categoryId?: string
 ): PeriodStats => {
   const habits: (ComputedHabit & { completed: boolean })[] = [];
   
   // 1. Recurring habits
   const recurring = allHabits.filter(h => {
     if (h.periodicity !== periodicity) return false;
+    if (categoryId && h.categoryId !== categoryId) return false;
     
     // createdAt is on/before the period
     const periodStart = periodicity === 'daily' 
@@ -92,6 +95,7 @@ export const computePeriodStats = (
       id: h.id,
       name: h.name,
       isOneOff: false,
+      categoryId: h.categoryId,
       completed: !!periodDoc?.done?.[h.id]
     });
   });
@@ -99,10 +103,12 @@ export const computePeriodStats = (
   // 2. One-off habits
   if (periodDoc?.oneOffHabits) {
     periodDoc.oneOffHabits.forEach(h => {
+      if (categoryId && h.categoryId !== categoryId) return;
       habits.push({
         id: h.id,
         name: h.name,
         isOneOff: true,
+        categoryId: h.categoryId,
         completed: !!periodDoc?.done?.[h.id]
       });
     });

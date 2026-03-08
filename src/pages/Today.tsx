@@ -8,7 +8,7 @@ import { Modal } from '../components/Modal';
 import { motion, Reorder, AnimatePresence } from 'motion/react';
 
 export const TodayPage: React.FC = () => {
-  const { user, data } = useApp();
+  const { user, data, categories } = useApp();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [dailyDoc, setDailyDoc] = useState<PeriodDoc | null>(null);
   const [weeklyDoc, setWeeklyDoc] = useState<PeriodDoc | null>(null);
@@ -22,6 +22,7 @@ export const TodayPage: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [newPeriodicity, setNewPeriodicity] = useState<'daily' | 'weekly'>('daily');
   const [isOneOff, setIsOneOff] = useState(false);
+  const [newCategoryId, setNewCategoryId] = useState<string>('');
 
   const dailyKey = getDailyKey();
   const weeklyKey = getWeeklyKey();
@@ -187,7 +188,11 @@ export const TodayPage: React.FC = () => {
     if (isOneOff) {
       const key = newPeriodicity === 'daily' ? dailyKey : weeklyKey;
       const doc = newPeriodicity === 'daily' ? dailyDoc : weeklyDoc;
-      const newOneOff = { id: Math.random().toString(36).substr(2, 9), name: newName.trim() };
+      const newOneOff = { 
+        id: Math.random().toString(36).substr(2, 9), 
+        name: newName.trim(),
+        categoryId: newCategoryId || undefined
+      };
       await data.updatePeriodDoc(user.uid, newPeriodicity, key, {
         oneOffHabits: [...(doc?.oneOffHabits || []), newOneOff]
       });
@@ -202,11 +207,13 @@ export const TodayPage: React.FC = () => {
         periodicity: newPeriodicity,
         createdAt: new Date(),
         deletedFromPeriodKey: null,
-        order: maxOrder + 1
+        order: maxOrder + 1,
+        categoryId: newCategoryId || undefined
       });
     }
 
     setNewName('');
+    setNewCategoryId('');
     setIsAddModalOpen(false);
     fetchData();
   };
@@ -261,6 +268,7 @@ export const TodayPage: React.FC = () => {
             <Reorder.Item key={h.id} value={h} dragListener={isReorderMode}>
               <HabitRow 
                 habit={h} 
+                categories={categories}
                 isReorderMode={isReorderMode}
                 onToggle={() => handleToggle(h.id, 'daily', h.completed)}
                 onDelete={() => handleDelete(h.id, h.name, 'daily', h.isOneOff)}
@@ -283,6 +291,7 @@ export const TodayPage: React.FC = () => {
             <Reorder.Item key={h.id} value={h} dragListener={isReorderMode}>
               <HabitRow 
                 habit={h} 
+                categories={categories}
                 isReorderMode={isReorderMode}
                 onToggle={() => handleToggle(h.id, 'weekly', h.completed)}
                 onDelete={() => handleDelete(h.id, h.name, 'weekly', h.isOneOff)}
@@ -355,6 +364,35 @@ export const TodayPage: React.FC = () => {
             </button>
           </div>
 
+          <div className="space-y-3">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-black/40">Category</label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setNewCategoryId('')}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-xs font-bold transition-all border",
+                  newCategoryId === '' ? "bg-black text-white border-black" : "bg-white text-black/40 border-black/5 hover:border-black/20"
+                )}
+              >
+                None
+              </button>
+              {categories.map(cat => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setNewCategoryId(cat.id)}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-xs font-bold transition-all border",
+                    newCategoryId === cat.id ? "bg-black text-white border-black" : "bg-white text-black/40 border-black/5 hover:border-black/20"
+                  )}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <button
             type="submit"
             className="w-full py-5 bg-black text-white rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition-transform"
@@ -395,10 +433,13 @@ export const TodayPage: React.FC = () => {
 
 const HabitRow: React.FC<{ 
   habit: any; 
+  categories: any[];
   isReorderMode: boolean;
   onToggle: () => void; 
   onDelete: () => void 
-}> = ({ habit, isReorderMode, onToggle, onDelete }) => {
+}> = ({ habit, categories, isReorderMode, onToggle, onDelete }) => {
+  const category = categories.find(c => c.id === habit.categoryId);
+
   return (
     <div className={cn(
       "flex items-center group bg-white p-1 rounded-2xl transition-all",
@@ -423,12 +464,19 @@ const HabitRow: React.FC<{
           </button>
         )}
       </div>
-      <span className={cn(
-        "flex-1 ml-4 font-medium text-lg transition-all",
-        habit.completed ? "text-black/30 line-through" : "text-black"
-      )}>
-        {habit.name}
-      </span>
+      <div className="flex-1 ml-4 flex items-center gap-3 overflow-hidden">
+        <span className={cn(
+          "font-medium text-lg transition-all truncate",
+          habit.completed ? "text-black/30 line-through" : "text-black"
+        )}>
+          {habit.name}
+        </span>
+        {category && (
+          <span className="text-[9px] font-black uppercase tracking-[0.15em] px-2 py-1 bg-black text-white/90 rounded-md whitespace-nowrap shrink-0">
+            {category.name}
+          </span>
+        )}
+      </div>
       {!isReorderMode && (
         <button
           onClick={onDelete}
