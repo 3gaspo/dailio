@@ -53,11 +53,18 @@ export class LocalDataProvider implements DataProvider {
     localStorage.setItem(this.getStorageKey(uid, `period_${periodicity}_${periodKey}`), JSON.stringify(updated));
   }
 
-  async resetData(uid: string): Promise<void> {
+  async resetData(uid: string, option: 'history' | 'all'): Promise<void> {
     const keys = Object.keys(localStorage);
     keys.forEach(k => {
-      if (k.startsWith(`dailio_${uid}`)) {
-        localStorage.removeItem(k);
+      if (option === 'all') {
+        if (k.startsWith(`dailio_${uid}`)) {
+          localStorage.removeItem(k);
+        }
+      } else {
+        // history only: delete period docs but keep habits
+        if (k.startsWith(`dailio_${uid}_period_`)) {
+          localStorage.removeItem(k);
+        }
       }
     });
   }

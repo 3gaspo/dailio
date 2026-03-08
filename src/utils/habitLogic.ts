@@ -78,15 +78,14 @@ export const computePeriodStats = (
     if (createdCompare > periodCompare) return false;
 
     // deletedFromPeriodKey is null OR periodKey is strictly before deletedFromPeriodKey
-    if (h.deletedFromPeriodKey) {
-      if (periodKey >= h.deletedFromPeriodKey) return false;
-    }
+    const deletedKey = h.deletedFromPeriodKey;
+    if (deletedKey && periodKey >= deletedKey) return false;
 
     // Not skipped
     if (periodDoc?.skippedHabitIds?.includes(h.id)) return false;
 
     return true;
-  }).sort((a, b) => (a.order || 0) - (b.order || 0));
+  });
 
   recurring.forEach(h => {
     habits.push({
@@ -106,6 +105,16 @@ export const computePeriodStats = (
         isOneOff: true,
         completed: !!periodDoc?.done?.[h.id]
       });
+    });
+  }
+
+  // 3. Sort by habitOrder if available
+  if (periodDoc?.habitOrder) {
+    const orderMap = new Map(periodDoc.habitOrder.map((id, index) => [id, index]));
+    habits.sort((a, b) => {
+      const orderA = orderMap.has(a.id) ? orderMap.get(a.id)! : 999;
+      const orderB = orderMap.has(b.id) ? orderMap.get(b.id)! : 999;
+      return orderA - orderB;
     });
   }
 

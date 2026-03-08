@@ -26,7 +26,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] p-8 z-[70] max-w-md mx-auto shadow-2xl"
+            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] p-8 z-[70] max-w-md mx-auto shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain"
           >
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>

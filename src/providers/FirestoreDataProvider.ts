@@ -66,13 +66,13 @@ export class FirestoreDataProvider implements DataProvider {
     }
   }
 
-  async resetData(uid: string): Promise<void> {
+  async resetData(uid: string, option: 'history' | 'all'): Promise<void> {
     const batch = writeBatch(this.db);
     
-    // This is a bit complex in Firestore without a cloud function, 
-    // but for this app we'll just delete what we can find.
-    const habits = await getDocs(collection(this.db, 'users', uid, 'habits'));
-    habits.forEach(d => batch.delete(d.ref));
+    if (option === 'all') {
+      const habits = await getDocs(collection(this.db, 'users', uid, 'habits'));
+      habits.forEach(d => batch.delete(d.ref));
+    }
     
     const dailies = await getDocs(collection(this.db, 'users', uid, 'periodDaily'));
     dailies.forEach(d => batch.delete(d.ref));

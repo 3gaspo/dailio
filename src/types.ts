@@ -20,6 +20,7 @@ export interface PeriodDoc {
   done: Record<string, boolean>;
   skippedHabitIds: string[];
   oneOffHabits: OneOffHabit[];
+  habitOrder?: string[];
   updatedAt: Date | Timestamp;
 }
 
@@ -36,6 +37,8 @@ export interface AuthProvider {
   onAuthStateChanged: (callback: (user: User | null) => void) => () => void;
 }
 
+export type ResetOption = 'history' | 'all';
+
 export interface DataProvider {
   // Habits
   getHabits: (uid: string) => Promise<Habit[]>;
@@ -48,5 +51,5 @@ export interface DataProvider {
   updatePeriodDoc: (uid: string, periodicity: Periodicity, periodKey: string, data: Partial<PeriodDoc>) => Promise<void>;
   
   // Actions
-  resetData: (uid: string) => Promise<void>;
+  resetData: (uid: string, option: ResetOption) => Promise<void>;
 }

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useApp } from '../providers/AppProvider';
 import { motion } from 'motion/react';
-import { LogOut, Download, RotateCcw, User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { LogOut, Download, RotateCcw, User, Mail, Lock, Eye, EyeOff, Trash2, History } from 'lucide-react';
 import { getDailyKey, getWeeklyKey } from '../utils/dateUtils';
 import { computePeriodStats } from '../utils/habitLogic';
 import { startOfYear, eachDayOfInterval } from 'date-fns';
+import { Modal } from '../components/Modal';
+import { ResetOption } from '../types';
 
 export const SettingsPage: React.FC = () => {
   const { auth, data, user, isDevMode } = useApp();
@@ -14,6 +16,7 @@ export const SettingsPage: React.FC = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,11 +35,17 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleReset = async () => {
+  const handleReset = async (option: ResetOption) => {
     if (!user) return;
-    if (confirm('Are you sure you want to reset all data? This cannot be undone.')) {
-      await data.resetData(user.uid);
+    setLoading(true);
+    try {
+      await data.resetData(user.uid, option);
       window.location.reload();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+      setIsResetModalOpen(false);
     }
   };
 
@@ -185,7 +194,7 @@ export const SettingsPage: React.FC = () => {
           </button>
 
           <button
-            onClick={handleReset}
+            onClick={() => setIsResetModalOpen(true)}
             className="w-full flex items-center justify-between p-6 bg-red-500/10 rounded-[24px] hover:bg-red-500 text-red-600 hover:text-white transition-all group"
           >
             <div className="flex items-center gap-4">
@@ -198,9 +207,50 @@ export const SettingsPage: React.FC = () => {
         </div>
       )}
 
+      <Modal 
+        isOpen={isResetModalOpen} 
+        onClose={() => setIsResetModalOpen(false)} 
+        title="Reset Data"
+      >
+        <div className="space-y-4">
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => handleReset('history')}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 p-5 bg-black/5 rounded-2xl hover:bg-black hover:text-white transition-all group font-bold"
+            >
+              <History size={20} />
+              <span>Clear History</span>
+            </button>
+
+            <button
+              onClick={() => handleReset('all')}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 p-5 bg-red-500/10 rounded-2xl hover:bg-red-500 hover:text-white transition-all group font-bold text-red-600"
+            >
+              <Trash2 size={20} />
+              <span>Reset All</span>
+            </button>
+
+            <button
+              onClick={() => setIsResetModalOpen(false)}
+              className="w-full py-4 text-sm font-bold text-black/40 hover:text-black transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       <footer className="mt-20 pt-8 border-t border-black/5 text-center">
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/20">
-          Dailio: version 0.1.0
+          Dailio: version 0.1.1
+        </p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/20 mt-1">
+          Gaspard Berthelier
+        </p>
+        <p className="text-[10px] font-bold tracking-[0.1em] text-black/20">
+          gberthelier.projet@gmail.com
         </p>
       </footer>
     </motion.div>
