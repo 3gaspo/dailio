@@ -75,6 +75,14 @@ export class FirestoreDataProvider implements DataProvider {
       
       const categories = await getDocs(collection(this.db, 'users', uid, 'categories'));
       categories.forEach(d => batch.delete(d.ref));
+    } else {
+      // history only: update habits createdAt to "now"
+      // so they don't show up as red in the past.
+      const habits = await getDocs(collection(this.db, 'users', uid, 'habits'));
+      const now = new Date();
+      habits.forEach(d => {
+        batch.update(d.ref, { createdAt: now });
+      });
     }
     
     const dailies = await getDocs(collection(this.db, 'users', uid, 'periodDaily'));

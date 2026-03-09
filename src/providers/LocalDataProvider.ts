@@ -67,6 +67,17 @@ export class LocalDataProvider implements DataProvider {
         }
       }
     });
+
+    // If history only, we also need to update habit createdAt to "now"
+    // so they don't show up as red in the past.
+    if (option === 'history') {
+      const habits = await this.getHabits(uid);
+      const now = new Date();
+      habits.forEach(h => {
+        h.createdAt = now;
+      });
+      localStorage.setItem(this.getStorageKey(uid, 'habits'), JSON.stringify(habits));
+    }
   }
 
   async getCategories(uid: string): Promise<Category[]> {
