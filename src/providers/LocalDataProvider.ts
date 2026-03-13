@@ -1,8 +1,22 @@
-import { DataProvider, Habit, PeriodDoc, Periodicity, Category } from '../types';
+import { DataProvider, Habit, PeriodDoc, Periodicity, Category, UserSettings, ResetOption } from '../types';
 
 export class LocalDataProvider implements DataProvider {
   private getStorageKey(uid: string, type: string) {
     return `dailio_${uid}_${type}`;
+  }
+
+  async getSettings(uid: string): Promise<UserSettings> {
+    const data = localStorage.getItem(this.getStorageKey(uid, 'settings'));
+    if (!data) {
+      return { dailyObjective: 0.8, weeklyObjective: 0.8 };
+    }
+    return JSON.parse(data);
+  }
+
+  async updateSettings(uid: string, settings: Partial<UserSettings>): Promise<void> {
+    const current = await this.getSettings(uid);
+    const updated = { ...current, ...settings };
+    localStorage.setItem(this.getStorageKey(uid, 'settings'), JSON.stringify(updated));
   }
 
   async getHabits(uid: string): Promise<Habit[]> {
@@ -87,7 +101,9 @@ export class LocalDataProvider implements DataProvider {
         { id: 'cat_chores', name: 'Chores' },
         { id: 'cat_sport', name: 'Sport' },
         { id: 'cat_culture', name: 'Culture' },
-        { id: 'cat_work', name: 'Work' }
+        { id: 'cat_work', name: 'Work' },
+        { id: 'cat_social', name: 'Social' },
+        { id: 'cat_projects', name: 'Projects' }
       ];
       localStorage.setItem(this.getStorageKey(uid, 'categories'), JSON.stringify(defaults));
       return defaults;

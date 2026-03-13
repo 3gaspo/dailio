@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { AuthProvider, Category, DataProvider, User } from '../types';
+import { AuthProvider, Category, DataProvider, User, UserSettings } from '../types';
 import { LocalAuthProvider } from './LocalAuthProvider';
 import { LocalDataProvider } from './LocalDataProvider';
 import { FirebaseAuthProvider } from './FirebaseAuthProvider';
@@ -10,6 +10,8 @@ interface AppContextType {
   data: DataProvider;
   user: User | null;
   categories: Category[];
+  settings: UserSettings;
+  updateSettings: (settings: Partial<UserSettings>) => Promise<void>;
   refreshCategories: () => Promise<void>;
   isDevMode: boolean;
   loading: boolean;
@@ -23,6 +25,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     data: DataProvider;
     user: User | null;
     categories: Category[];
+    settings: UserSettings;
     isDevMode: boolean;
     loading: boolean;
   } | null>(null);
@@ -33,6 +36,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setState(prev => prev ? { ...prev, categories: cats } : null);
   };
 
+  const updateSettings = async (newSettings: Partial<UserSettings>) => {
+    if (!state?.user) return;
+    await state.data.updateSettings(state.user.uid, newSettings);
+    const updated = await state.data.getSettings(state.user.uid);
+    setState(prev => prev ? { ...prev, settings: updated } : null);
+  };
+
   useEffect(() => {
     const hasFirebase = !!import.meta.env.VITE_FIREBASE_API_KEY;
     const auth = hasFirebase ? new FirebaseAuthProvider() : new LocalAuthProvider();
@@ -40,14 +50,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       let categories: Category[] = [];
+      let settings: UserSettings = { dailyObjective: 0.8, weeklyObjective: 0.8 };
       if (user) {
-        categories = await data.getCategories(user.uid);
+        [categories, settings] = await Promise.all([
+          data.getCategories(user.uid),
+          data.getSettings(user.uid)
+        ]);
       }
       setState({
         auth,
         data,
         user,
         categories,
+        settings,
         isDevMode: !hasFirebase,
         loading: false
       });
@@ -59,7 +74,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   if (!state) return null;
 
   return (
-    <AppContext.Provider value={{ ...state, refreshCategories }}>
+    <AppContext.Provider value={{ ...state, refreshCategories, updateSettings }}>
       {children}
     </AppContext.Provider>
   );

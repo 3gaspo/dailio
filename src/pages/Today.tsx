@@ -78,31 +78,44 @@ export const TodayPage: React.FC = () => {
     
     const newDone = { ...(doc?.done || {}), [id]: !current };
     
-    // Auto-reorder: move to bottom if checked
-    let newHabitOrder = doc?.habitOrder ? [...doc.habitOrder] : stats.habits.map(h => h.id);
-    if (!current) { // becoming checked
-      newHabitOrder = newHabitOrder.filter(hid => hid !== id);
+    // Maintain habitOrder: 
+    // If checking: move to the very end.
+    // If unchecking: move to the end of the unchecked block.
+    let currentOrder = doc?.habitOrder ? [...doc.habitOrder] : stats.habits.map(h => h.id);
+    
+    // Ensure all current habits are in the order list
+    const allIds = stats.habits.map(h => h.id);
+    allIds.forEach(hid => {
+      if (!currentOrder.includes(hid)) currentOrder.push(hid);
+    });
+    // Remove any stale IDs
+    currentOrder = currentOrder.filter(hid => allIds.includes(hid));
+
+    let newHabitOrder: string[] = [];
+    if (!current) { // Becoming checked
+      newHabitOrder = currentOrder.filter(hid => hid !== id);
       newHabitOrder.push(id);
+    } else { // Becoming unchecked
+      const uncheckedIds = currentOrder.filter(hid => hid !== id && !newDone[hid]);
+      const checkedIds = currentOrder.filter(hid => hid !== id && newDone[hid]);
+      newHabitOrder = [...uncheckedIds, id, ...checkedIds];
     }
     
     // Update local state immediately for snappy feel
-    const updatedHabits = (periodicity === 'daily' ? localDailyHabits : localWeeklyHabits).map(h => 
+    const updatedHabits = [...stats.habits].map(h => 
       h.id === id ? { ...h, completed: !current } : h
     );
     
-    // If checking, move to bottom of local state too
-    if (!current) {
-      const habit = updatedHabits.find(h => h.id === id);
-      if (habit) {
-        const filtered = updatedHabits.filter(h => h.id !== id);
-        filtered.push(habit);
-        if (periodicity === 'daily') setLocalDailyHabits(filtered);
-        else setLocalWeeklyHabits(filtered);
-      }
-    } else {
-      if (periodicity === 'daily') setLocalDailyHabits(updatedHabits);
-      else setLocalWeeklyHabits(updatedHabits);
-    }
+    // Sort local habits for immediate feedback
+    updatedHabits.sort((a, b) => {
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      const indexA = newHabitOrder.indexOf(a.id);
+      const indexB = newHabitOrder.indexOf(b.id);
+      return indexA - indexB;
+    });
+
+    if (periodicity === 'daily') setLocalDailyHabits(updatedHabits);
+    else setLocalWeeklyHabits(updatedHabits);
 
     // Optimistic update for the doc
     const updateState = (prev: PeriodDoc | null): PeriodDoc => {
@@ -188,13 +201,22 @@ export const TodayPage: React.FC = () => {
     if (isOneOff) {
       const key = newPeriodicity === 'daily' ? dailyKey : weeklyKey;
       const doc = newPeriodicity === 'daily' ? dailyDoc : weeklyDoc;
+      const stats = newPeriodicity === 'daily' ? dailyStats : weeklyStats;
+      const newId = Math.random().toString(36).substr(2, 9);
       const newOneOff = { 
-        id: Math.random().toString(36).substr(2, 9), 
+        id: newId, 
         name: newName.trim(),
         categoryId: newCategoryId || undefined
       };
+      
+      let currentOrder = doc?.habitOrder ? [...doc.habitOrder] : stats.habits.map(h => h.id);
+      const uncheckedIds = currentOrder.filter(hid => !doc?.done?.[hid]);
+      const checkedIds = currentOrder.filter(hid => doc?.done?.[hid]);
+      const newHabitOrder = [...uncheckedIds, newId, ...checkedIds];
+
       await data.updatePeriodDoc(user.uid, newPeriodicity, key, {
-        oneOffHabits: [...(doc?.oneOffHabits || []), newOneOff]
+        oneOffHabits: [...(doc?.oneOffHabits || []), newOneOff],
+        habitOrder: newHabitOrder
       });
     } else {
       const currentHabits = await data.getHabits(user.uid);
@@ -202,7 +224,7 @@ export const TodayPage: React.FC = () => {
         .filter(h => h.periodicity === newPeriodicity)
         .reduce((max, h) => Math.max(max, h.order || 0), -1);
       
-      await data.addHabit(user.uid, {
+      const newId = await data.addHabit(user.uid, {
         name: newName.trim(),
         periodicity: newPeriodicity,
         createdAt: new Date(),
@@ -210,6 +232,17 @@ export const TodayPage: React.FC = () => {
         order: maxOrder + 1,
         categoryId: newCategoryId || undefined
       });
+
+      const key = newPeriodicity === 'daily' ? dailyKey : weeklyKey;
+      const doc = newPeriodicity === 'daily' ? dailyDoc : weeklyDoc;
+      const stats = newPeriodicity === 'daily' ? dailyStats : weeklyStats;
+      
+      let currentOrder = doc?.habitOrder ? [...doc.habitOrder] : stats.habits.map(h => h.id);
+      const uncheckedIds = currentOrder.filter(hid => !doc?.done?.[hid]);
+      const checkedIds = currentOrder.filter(hid => doc?.done?.[hid]);
+      const newHabitOrder = [...uncheckedIds, newId, ...checkedIds];
+      
+      await data.updatePeriodDoc(user.uid, newPeriodicity, key, { habitOrder: newHabitOrder });
     }
 
     setNewName('');
@@ -310,26 +343,26 @@ export const TodayPage: React.FC = () => {
       </button>
 
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add habit">
-        <form onSubmit={handleAdd} className="space-y-8">
-          <div className="space-y-2">
+        <form onSubmit={handleAdd} className="space-y-6">
+          <div className="space-y-1">
             <label className="text-[10px] font-bold uppercase tracking-widest text-black/40">Name</label>
             <input
               autoFocus
               type="text"
               value={newName}
               onChange={e => setNewName(e.target.value)}
-              className="w-full text-xl font-medium border-b-2 border-black/10 focus:border-black outline-none pb-2 transition-colors"
+              className="w-full text-xl font-medium border-b-2 border-black/10 focus:border-black outline-none pb-1 transition-colors"
               placeholder="Drink water"
               required
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => setNewPeriodicity('daily')}
               className={cn(
-                "py-4 rounded-2xl font-semibold transition-all",
+                "py-3 rounded-2xl font-semibold transition-all text-sm",
                 newPeriodicity === 'daily' ? "bg-black text-white" : "bg-black/5 text-black/40"
               )}
             >
@@ -339,7 +372,7 @@ export const TodayPage: React.FC = () => {
               type="button"
               onClick={() => setNewPeriodicity('weekly')}
               className={cn(
-                "py-4 rounded-2xl font-semibold transition-all",
+                "py-3 rounded-2xl font-semibold transition-all text-sm",
                 newPeriodicity === 'weekly' ? "bg-black text-white" : "bg-black/5 text-black/40"
               )}
             >
@@ -347,31 +380,31 @@ export const TodayPage: React.FC = () => {
             </button>
           </div>
 
-          <div className="flex items-center justify-between py-2">
-            <span className="font-medium">One-off habit</span>
+          <div className="flex items-center justify-between py-1">
+            <span className="font-medium text-sm">One-off habit</span>
             <button
               type="button"
               onClick={() => setIsOneOff(!isOneOff)}
               className={cn(
-                "w-12 h-6 rounded-full transition-colors relative",
+                "w-10 h-5 rounded-full transition-colors relative",
                 isOneOff ? "bg-black" : "bg-black/10"
               )}
             >
               <div className={cn(
-                "absolute top-1 w-4 h-4 bg-white rounded-full transition-all",
-                isOneOff ? "left-7" : "left-1"
+                "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all",
+                isOneOff ? "left-5.5" : "left-0.5"
               )} />
             </button>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             <label className="text-[10px] font-bold uppercase tracking-widest text-black/40">Category</label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
                 onClick={() => setNewCategoryId('')}
                 className={cn(
-                  "px-4 py-2 rounded-xl text-xs font-bold transition-all border",
+                  "px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all border",
                   newCategoryId === '' ? "bg-black text-white border-black" : "bg-white text-black/40 border-black/5 hover:border-black/20"
                 )}
               >
@@ -383,7 +416,7 @@ export const TodayPage: React.FC = () => {
                   type="button"
                   onClick={() => setNewCategoryId(cat.id)}
                   className={cn(
-                    "px-4 py-2 rounded-xl text-xs font-bold transition-all border",
+                    "px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all border",
                     newCategoryId === cat.id ? "bg-black text-white border-black" : "bg-white text-black/40 border-black/5 hover:border-black/20"
                   )}
                 >
@@ -395,7 +428,7 @@ export const TodayPage: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full py-5 bg-black text-white rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition-transform"
+            className="w-full py-4 bg-black text-white rounded-2xl font-bold text-base shadow-lg active:scale-95 transition-transform mt-2"
           >
             Confirm
           </button>

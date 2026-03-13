@@ -10,7 +10,7 @@ import { ResetOption } from '../types';
 import pkg from '../../package.json';
 
 export const SettingsPage: React.FC = () => {
-  const { auth, data, user, isDevMode, categories, refreshCategories } = useApp();
+  const { auth, data, user, isDevMode, categories, refreshCategories, settings, updateSettings } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -19,6 +19,24 @@ export const SettingsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+
+  const [localDailyObj, setLocalDailyObj] = useState(settings.dailyObjective);
+  const [localWeeklyObj, setLocalWeeklyObj] = useState(settings.weeklyObjective);
+
+  React.useEffect(() => {
+    setLocalDailyObj(settings.dailyObjective);
+    setLocalWeeklyObj(settings.weeklyObjective);
+  }, [settings.dailyObjective, settings.weeklyObjective]);
+
+  const handleUpdateObjective = async (type: 'daily' | 'weekly', value: number) => {
+    if (type === 'daily') {
+      setLocalDailyObj(value);
+      await updateSettings({ dailyObjective: value });
+    } else {
+      setLocalWeeklyObj(value);
+      await updateSettings({ weeklyObjective: value });
+    }
+  };
 
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,6 +204,47 @@ export const SettingsPage: React.FC = () => {
         </section>
       ) : (
         <div className="space-y-4">
+          <section className="bg-black/5 p-8 rounded-[32px] mb-8">
+            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black/30 mb-6">Objectives</h2>
+            <div className="space-y-8">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold">Daily Objective</span>
+                  <span className="text-xl font-black">{Math.round(localDailyObj * 100)}%</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="1" 
+                  step="0.05" 
+                  value={localDailyObj}
+                  onChange={(e) => setLocalDailyObj(parseFloat(e.target.value))}
+                  onMouseUp={(e) => handleUpdateObjective('daily', parseFloat((e.target as HTMLInputElement).value))}
+                  onTouchEnd={(e) => handleUpdateObjective('daily', parseFloat((e.target as HTMLInputElement).value))}
+                  className="w-full h-2 bg-black/10 rounded-lg appearance-none cursor-pointer accent-black"
+                />
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold">Weekly Objective</span>
+                  <span className="text-xl font-black">{Math.round(localWeeklyObj * 100)}%</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="1" 
+                  step="0.05" 
+                  value={localWeeklyObj}
+                  onChange={(e) => setLocalWeeklyObj(parseFloat(e.target.value))}
+                  onMouseUp={(e) => handleUpdateObjective('weekly', parseFloat((e.target as HTMLInputElement).value))}
+                  onTouchEnd={(e) => handleUpdateObjective('weekly', parseFloat((e.target as HTMLInputElement).value))}
+                  className="w-full h-2 bg-black/10 rounded-lg appearance-none cursor-pointer accent-black"
+                />
+              </div>
+            </div>
+          </section>
+
           <section className="bg-black/5 p-8 rounded-[32px] mb-8">
             <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black/30 mb-6">Categories</h2>
             <div className="space-y-3 mb-6">

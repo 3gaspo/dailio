@@ -9,7 +9,7 @@ import { motion } from 'motion/react';
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, addMonths, subMonths, isSameMonth, isSameDay, startOfYear, endOfYear, eachWeekOfInterval, getISOWeek, getYear, isBefore, isAfter, startOfDay, isSameWeek } from 'date-fns';
 
 export const CalendarPage: React.FC = () => {
-  const { user, data } = useApp();
+  const { user, data, settings } = useApp();
   const [view, setView] = useState<'daily' | 'weekly'>(() => {
     return (localStorage.getItem('dailio_calendar_view') as 'daily' | 'weekly') || 'daily';
   });
@@ -105,6 +105,15 @@ export const CalendarPage: React.FC = () => {
     fetchData();
   };
 
+  const handleToggleAbsent = async () => {
+    if (!user || !selectedPeriod) return;
+    const { key } = selectedPeriod;
+    const doc = periodDocs[key];
+    const newAbsent = !(doc?.isAbsent);
+    await data.updatePeriodDoc(user.uid, view, key, { isAbsent: newAbsent });
+    fetchData();
+  };
+
   const renderDaily = () => {
     const start = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 });
     const end = endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 1 });
@@ -124,12 +133,20 @@ export const CalendarPage: React.FC = () => {
           const isPast = isBefore(d, today);
           const isDone = stats.to_do > 0 && stats.done === stats.to_do;
           const isIncomplete = stats.to_do > 0 && stats.done < stats.to_do;
+          const objectiveMet = stats.to_do > 0 && stats.ratio >= settings.dailyObjective;
+          const isAbsent = stats.isAbsent;
 
           let cellColor = "bg-black/5 text-black/40";
-          if (isDone) {
+          if (isAbsent) {
+            cellColor = "bg-black/5 text-black/40";
+          } else if (isDone) {
             if (isPast || isToday) cellColor = "bg-emerald-500 text-white";
           } else if (isIncomplete) {
-            if (isPast) cellColor = "bg-red-500 text-white";
+            if (objectiveMet) {
+              cellColor = "bg-amber-400 text-white";
+            } else if (isPast) {
+              cellColor = "bg-red-500 text-white";
+            }
           }
 
           return (
@@ -169,13 +186,21 @@ export const CalendarPage: React.FC = () => {
           const isPastWeek = isBefore(w, currentWeekStart);
           const isDone = stats.to_do > 0 && stats.done === stats.to_do;
           const isIncomplete = stats.to_do > 0 && stats.done < stats.to_do;
+          const objectiveMet = stats.to_do > 0 && stats.ratio >= settings.weeklyObjective;
+          const isAbsent = stats.isAbsent;
           const weekNum = getISOWeek(w);
 
           let cellColor = "bg-black/5 text-black/40";
-          if (isDone) {
+          if (isAbsent) {
+            cellColor = "bg-black/5 text-black/40";
+          } else if (isDone) {
             if (isPastWeek || isCurrentWeek) cellColor = "bg-emerald-500 text-white";
           } else if (isIncomplete) {
-            if (isPastWeek) cellColor = "bg-red-500 text-white";
+            if (objectiveMet) {
+              cellColor = "bg-amber-400 text-white";
+            } else if (isPastWeek) {
+              cellColor = "bg-red-500 text-white";
+            }
           }
 
           return (
@@ -259,50 +284,77 @@ export const CalendarPage: React.FC = () => {
         onClose={() => setSelectedPeriod(null)}
         title={selectedPeriod ? (view === 'daily' ? format(selectedPeriod.date, 'MMMM d, yyyy') : `Week ${getISOWeek(selectedPeriod.date)}, ${getYear(selectedPeriod.date)}`) : ''}
       >
-        {selectedPeriod && (
-          <div className="space-y-8">
-            <div className="space-y-3">
-              {computePeriodStats(selectedPeriod.key, view, habits, periodDocs[selectedPeriod.key] || null).habits.map(h => (
-                <div key={h.id} className="flex items-center">
-                  <button
-                    onClick={() => handleToggle(h.id, h.completed)}
-                    className={cn(
-                      "w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all",
-                      h.completed ? "bg-black border-black text-white" : "border-black/10 text-transparent"
-                    )}
-                  >
-                    <Check size={14} strokeWidth={4} />
-                  </button>
-                  <span className={cn("flex-1 ml-3 font-medium", h.completed && "text-black/30 line-through")}>{h.name}</span>
-                  <button
-                    onClick={() => h.isOneOff ? handleDeleteOneOff(h.id) : handleSkip(h.id)}
-                    className="p-2 text-black/10 hover:text-red-500"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              ))}
-              {computePeriodStats(selectedPeriod.key, view, habits, periodDocs[selectedPeriod.key] || null).habits.length === 0 && (
-                <p className="text-center text-black/20 py-4 italic">No habits for this period</p>
-              )}
-            </div>
-
-            <form onSubmit={handleAddOneOff} className="pt-6 border-t border-black/5">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newOneOffName}
-                  onChange={e => setNewOneOffName(e.target.value)}
-                  placeholder="Add one-off habit..."
-                  className="flex-1 bg-black/5 rounded-xl px-4 py-3 outline-none focus:ring-2 ring-black/10 transition-all font-medium"
-                />
-                <button type="submit" className="bg-black text-white p-3 rounded-xl shadow-lg active:scale-95 transition-transform">
-                  <Plus size={24} />
+        {selectedPeriod && (() => {
+          const stats = computePeriodStats(selectedPeriod.key, view, habits, periodDocs[selectedPeriod.key] || null);
+          return (
+            <div className="space-y-8">
+              <div className="flex items-center justify-between p-4 bg-black/5 rounded-2xl">
+                <p className="font-bold">Absent</p>
+                <button
+                  onClick={handleToggleAbsent}
+                  className={cn(
+                    "w-12 h-6 rounded-full transition-all relative",
+                    stats.isAbsent ? "bg-black" : "bg-black/10"
+                  )}
+                >
+                  <div className={cn(
+                    "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
+                    stats.isAbsent ? "left-7" : "left-1"
+                  )} />
                 </button>
               </div>
-            </form>
-          </div>
-        )}
+
+              <div className="space-y-3">
+                {stats.habits.map(h => (
+                  <div key={h.id} className="flex items-center">
+                    <button
+                      onClick={() => handleToggle(h.id, h.completed)}
+                      disabled={stats.isAbsent}
+                      className={cn(
+                        "w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all",
+                        h.completed ? "bg-black border-black text-white" : "border-black/10 text-transparent",
+                        stats.isAbsent && "opacity-20 cursor-not-allowed"
+                      )}
+                    >
+                      <Check size={14} strokeWidth={4} />
+                    </button>
+                    <span className={cn("flex-1 ml-3 font-medium", (h.completed || stats.isAbsent) && "text-black/30 line-through")}>{h.name}</span>
+                    <button
+                      onClick={() => h.isOneOff ? handleDeleteOneOff(h.id) : handleSkip(h.id)}
+                      disabled={stats.isAbsent}
+                      className={cn("p-2 text-black/10 hover:text-red-500", stats.isAbsent && "opacity-20 cursor-not-allowed")}
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                ))}
+                {stats.habits.length === 0 && (
+                  <p className="text-center text-black/20 py-4 italic">No habits for this period</p>
+                )}
+              </div>
+
+              <form onSubmit={handleAddOneOff} className="pt-6 border-t border-black/5">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newOneOffName}
+                    onChange={e => setNewOneOffName(e.target.value)}
+                    disabled={stats.isAbsent}
+                    placeholder="Add one-off habit..."
+                    className="flex-1 bg-black/5 rounded-xl px-4 py-3 outline-none focus:ring-2 ring-black/10 transition-all font-medium disabled:opacity-50"
+                  />
+                  <button 
+                    type="submit" 
+                    disabled={stats.isAbsent}
+                    className="bg-black text-white p-3 rounded-xl shadow-lg active:scale-95 transition-transform disabled:opacity-50"
+                  >
+                    <Plus size={24} />
+                  </button>
+                </div>
+              </form>
+            </div>
+          );
+        })()}
       </Modal>
     </motion.div>
   );

@@ -11,6 +11,7 @@ export interface PeriodStats {
   to_do: number;
   done: number;
   ratio: number;
+  isAbsent: boolean;
   habits: (ComputedHabit & { completed: boolean })[];
 }
 
@@ -21,6 +22,7 @@ export const computePeriodStats = (
   periodDoc: PeriodDoc | null,
   categoryId?: string
 ): PeriodStats => {
+  const isAbsent = !!periodDoc?.isAbsent;
   const habits: (ComputedHabit & { completed: boolean })[] = [];
   
   // 1. Recurring habits
@@ -114,15 +116,24 @@ export const computePeriodStats = (
     });
   }
 
-  // 3. Sort by habitOrder if available
-  if (periodDoc?.habitOrder) {
-    const orderMap = new Map(periodDoc.habitOrder.map((id, index) => [id, index]));
-    habits.sort((a, b) => {
+  // 3. Sort
+  habits.sort((a, b) => {
+    // Primary: completion status (unchecked first)
+    if (a.completed !== b.completed) {
+      return a.completed ? 1 : -1;
+    }
+
+    // Secondary: habitOrder if available
+    if (periodDoc?.habitOrder) {
+      const orderMap = new Map(periodDoc.habitOrder.map((id, index) => [id, index]));
       const orderA = orderMap.has(a.id) ? orderMap.get(a.id)! : 999;
       const orderB = orderMap.has(b.id) ? orderMap.get(b.id)! : 999;
-      return orderA - orderB;
-    });
-  }
+      if (orderA !== orderB) return orderA - orderB;
+    }
+
+    // Tertiary: fallback to name for stability
+    return a.name.localeCompare(b.name);
+  });
 
   const to_do = habits.length;
   const doneCount = habits.filter(h => h.completed).length;
@@ -132,6 +143,7 @@ export const computePeriodStats = (
     to_do,
     done: doneCount,
     ratio,
+    isAbsent,
     habits
   };
 };

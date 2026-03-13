@@ -4,7 +4,7 @@ import { getDailyKey, getWeeklyKey } from '../utils/dateUtils';
 import { computePeriodStats } from '../utils/habitLogic';
 import { Habit, PeriodDoc } from '../types';
 import { motion } from 'motion/react';
-import { startOfMonth, eachDayOfInterval, eachWeekOfInterval, startOfYear, endOfMonth } from 'date-fns';
+import { startOfMonth, eachDayOfInterval, eachWeekOfInterval, startOfYear, endOfMonth, subDays, max, startOfDay, isBefore } from 'date-fns';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 
 export const StatisticsPage: React.FC = () => {
@@ -72,8 +72,9 @@ export const StatisticsPage: React.FC = () => {
         const stats = computePeriodStats(key, 'daily', habits, periodDocs[key] || null, selectedCategoryId);
         return {
           name: range === 'month' ? d.getDate().toString() : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          ratio: stats.to_do === 0 ? 0 : Math.round(stats.ratio * 100),
-          to_do: stats.to_do
+          ratio: (stats.to_do === 0 || stats.isAbsent) ? 0 : Math.round(stats.ratio * 100),
+          to_do: stats.to_do,
+          isAbsent: stats.isAbsent
         };
       });
     } else {
@@ -83,8 +84,9 @@ export const StatisticsPage: React.FC = () => {
         const stats = computePeriodStats(key, 'weekly', habits, periodDocs[key] || null, selectedCategoryId);
         return {
           name: `W${key.split('-W')[1]}`,
-          ratio: stats.to_do === 0 ? 0 : Math.round(stats.ratio * 100),
-          to_do: stats.to_do
+          ratio: (stats.to_do === 0 || stats.isAbsent) ? 0 : Math.round(stats.ratio * 100),
+          to_do: stats.to_do,
+          isAbsent: stats.isAbsent
         };
       });
     }
@@ -93,9 +95,24 @@ export const StatisticsPage: React.FC = () => {
   const chartData = getChartData();
   
   const yearRate = (() => {
-    // Always calculate year rate based on the full year up to today
-    const start = startOfYear(new Date());
-    const end = new Date();
+    if (habits.length === 0) return 0;
+
+    // Find the first entry (earliest habit creation)
+    const habitDates = habits.map(h => {
+      return h.createdAt instanceof Date 
+        ? h.createdAt 
+        : (h.createdAt && typeof (h.createdAt as any).toDate === 'function')
+          ? (h.createdAt as any).toDate()
+          : new Date(h.createdAt as any);
+    });
+    const firstHabitDate = new Date(Math.min(...habitDates.map(d => d.getTime())));
+
+    // Period of activity: from max(startOfYear, firstEntry) up until yesterday
+    const start = max([startOfYear(new Date()), startOfDay(firstHabitDate)]);
+    const end = subDays(startOfDay(new Date()), 1);
+
+    if (isBefore(end, start)) return 0;
+
     let totalRatio = 0;
     let validPeriods = 0;
 
@@ -104,7 +121,7 @@ export const StatisticsPage: React.FC = () => {
       days.forEach(d => {
         const key = getDailyKey(d);
         const stats = computePeriodStats(key, 'daily', habits, periodDocs[key] || null, selectedCategoryId);
-        if (stats.to_do > 0) {
+        if (stats.to_do > 0 && !stats.isAbsent) {
           totalRatio += stats.ratio;
           validPeriods++;
         }
@@ -114,7 +131,7 @@ export const StatisticsPage: React.FC = () => {
       weeks.forEach(w => {
         const key = getWeeklyKey(w);
         const stats = computePeriodStats(key, 'weekly', habits, periodDocs[key] || null, selectedCategoryId);
-        if (stats.to_do > 0) {
+        if (stats.to_do > 0 && !stats.isAbsent) {
           totalRatio += stats.ratio;
           validPeriods++;
         }
@@ -248,9 +265,10 @@ export const StatisticsPage: React.FC = () => {
               <Tooltip 
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
+                    const data = payload[0].payload;
                     return (
                       <div className="bg-black text-white px-3 py-2 rounded-xl text-xs font-bold">
-                        {payload[0].value}%
+                        {data.isAbsent ? 'Absent' : `${payload[0].value}%`}
                       </div>
                     );
                   }

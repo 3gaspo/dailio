@@ -1,6 +1,6 @@
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, deleteDoc, writeBatch } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
-import { DataProvider, Habit, PeriodDoc, Periodicity, Category } from '../types';
+import { DataProvider, Habit, PeriodDoc, Periodicity, Category, UserSettings } from '../types';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -17,6 +17,25 @@ export class FirestoreDataProvider implements DataProvider {
   constructor() {
     const app = initializeApp(firebaseConfig);
     this.db = getFirestore(app);
+  }
+
+  async getSettings(uid: string): Promise<UserSettings> {
+    const d = doc(this.db, 'users', uid, 'settings', 'general');
+    const snap = await getDoc(d);
+    if (snap.exists()) {
+      return snap.data() as UserSettings;
+    }
+    return { dailyObjective: 0.8, weeklyObjective: 0.8 };
+  }
+
+  async updateSettings(uid: string, settings: Partial<UserSettings>): Promise<void> {
+    const d = doc(this.db, 'users', uid, 'settings', 'general');
+    const snap = await getDoc(d);
+    if (snap.exists()) {
+      await updateDoc(d, { ...settings });
+    } else {
+      await setDoc(d, { dailyObjective: 0.8, weeklyObjective: 0.8, ...settings });
+    }
   }
 
   async getHabits(uid: string): Promise<Habit[]> {
@@ -98,7 +117,7 @@ export class FirestoreDataProvider implements DataProvider {
     const col = collection(this.db, 'users', uid, 'categories');
     const snap = await getDocs(col);
     if (snap.empty) {
-      const defaults = ['Chores', 'Sport', 'Culture', 'Work'];
+      const defaults = ['Chores', 'Sport', 'Culture', 'Work', 'Social', 'Projects'];
       const batch = writeBatch(this.db);
       const created: Category[] = [];
       for (const name of defaults) {
