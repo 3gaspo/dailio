@@ -1,0 +1,83 @@
+import { Timestamp } from 'firebase/firestore';
+
+export type Periodicity = 'daily' | 'weekly';
+
+export interface Category {
+  id: string;
+  name: string;
+}
+
+export interface Habit {
+  id: string;
+  name: string;
+  periodicity: Periodicity;
+  createdAt: Date | Timestamp;
+  deletedFromPeriodKey: string | null;
+  order?: number;
+  categoryId?: string;
+  multiplicity?: number;
+  isAntiTask?: boolean;
+}
+
+export interface OneOffHabit {
+  id: string;
+  name: string;
+  categoryId?: string;
+  multiplicity?: number;
+  isAntiTask?: boolean;
+}
+
+export interface PeriodDoc {
+  done: Record<string, boolean>;
+  subDone?: Record<string, number>;
+  skippedHabitIds: string[];
+  oneOffHabits: OneOffHabit[];
+  habitOrder?: string[];
+  isAbsent?: boolean;
+  updatedAt: Date | Timestamp;
+}
+
+export interface User {
+  uid: string;
+  email: string | null;
+}
+
+export interface AuthProvider {
+  getUser: () => User | null;
+  signIn: (email: string, pass: string) => Promise<void>;
+  signUp: (email: string, pass: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  onAuthStateChanged: (callback: (user: User | null) => void) => () => void;
+}
+
+export type ResetOption = 'history' | 'all';
+
+export interface UserSettings {
+  dailyObjective: number; // 0 to 1
+  weeklyObjective: number; // 0 to 1
+  theme?: 'light' | 'dark';
+}
+
+export interface DataProvider {
+  // Habits
+  getHabits: (uid: string) => Promise<Habit[]>;
+  addHabit: (uid: string, habit: Omit<Habit, 'id'>) => Promise<string>;
+  setHabitDeletedFromPeriodKey: (uid: string, habitId: string, periodKey: string) => Promise<void>;
+  updateHabitOrder: (uid: string, habitId: string, order: number) => Promise<void>;
+  
+  // Period Docs
+  getPeriodDoc: (uid: string, periodicity: Periodicity, periodKey: string) => Promise<PeriodDoc | null>;
+  updatePeriodDoc: (uid: string, periodicity: Periodicity, periodKey: string, data: Partial<PeriodDoc>) => Promise<void>;
+  
+  // Settings
+  getSettings: (uid: string) => Promise<UserSettings>;
+  updateSettings: (uid: string, settings: Partial<UserSettings>) => Promise<void>;
+
+  // Actions
+  resetData: (uid: string, option: ResetOption) => Promise<void>;
+
+  // Categories
+  getCategories: (uid: string) => Promise<Category[]>;
+  addCategory: (uid: string, name: string) => Promise<string>;
+  deleteCategory: (uid: string, categoryId: string) => Promise<void>;
+}
