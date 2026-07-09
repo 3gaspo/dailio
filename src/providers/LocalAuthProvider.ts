@@ -6,12 +6,18 @@ export class LocalAuthProvider implements AuthProvider {
 
   constructor() {
     const stored = localStorage.getItem('dailio_user');
+    const hasVisited = localStorage.getItem('dailio_has_visited');
+    
     if (stored) {
       this.user = JSON.parse(stored);
-    } else {
-      // Default dev user
+    } else if (!hasVisited) {
+      // Default dev user on first visit
       this.user = { uid: 'dev-user', email: 'dev@dailio.app' };
       localStorage.setItem('dailio_user', JSON.stringify(this.user));
+      localStorage.setItem('dailio_has_visited', 'true');
+    } else {
+      // If they explicitly logged out, keep them signed out
+      this.user = null;
     }
   }
 
@@ -20,14 +26,20 @@ export class LocalAuthProvider implements AuthProvider {
   }
 
   async signIn(email: string, _pass: string) {
-    this.user = { uid: 'dev-user', email };
+    const cleanEmail = email.trim();
+    const uid = 'dev-user-' + cleanEmail.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    this.user = { uid, email: cleanEmail };
     localStorage.setItem('dailio_user', JSON.stringify(this.user));
+    localStorage.setItem('dailio_has_visited', 'true');
     this.notify();
   }
 
   async signUp(email: string, _pass: string) {
-    this.user = { uid: 'dev-user', email };
+    const cleanEmail = email.trim();
+    const uid = 'dev-user-' + cleanEmail.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    this.user = { uid, email: cleanEmail };
     localStorage.setItem('dailio_user', JSON.stringify(this.user));
+    localStorage.setItem('dailio_has_visited', 'true');
     this.notify();
   }
 

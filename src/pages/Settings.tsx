@@ -151,15 +151,17 @@ export const SettingsPage: React.FC = () => {
           <h2 className="text-xl font-bold mb-8">{isSignUp ? 'Create account' : 'Sign in'}</h2>
           <form onSubmit={handleAuth} className="space-y-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-black/30 ml-1">Email</label>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-black/30 ml-1">
+                {isDevMode ? 'Email or Username' : 'Email'}
+              </label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-black/20" size={20} />
                 <input
-                  type="email"
+                  type={isDevMode ? "text" : "email"}
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   className="w-full bg-white rounded-2xl py-4 pl-12 pr-4 outline-none focus:ring-2 ring-black/10 transition-all font-medium"
-                  placeholder="name@example.com"
+                  placeholder={isDevMode ? "name@example.com or username" : "name@example.com"}
                   required
                 />
               </div>
@@ -385,13 +387,13 @@ export const SettingsPage: React.FC = () => {
 
       <footer className="mt-20 pt-12 border-t border-black/5 dark:border-white/5 flex flex-col items-center gap-3">
         <div className="flex flex-col items-center gap-1">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/20 dark:text-white/20">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/70 dark:text-white/70">
             Dailio: version {pkg.version}
           </p>
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/20 dark:text-white/20 mt-1">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/70 dark:text-white/70 mt-1">
             Gaspard Berthelier
           </p>
-          <p className="text-[10px] font-bold tracking-[0.1em] text-black/20 dark:text-white/20">
+          <p className="text-[10px] font-bold tracking-[0.1em] text-black/70 dark:text-white/70">
             gberthelier.projet@gmail.com
           </p>
         </div>
@@ -399,7 +401,7 @@ export const SettingsPage: React.FC = () => {
         <img 
           src="/sakura.svg" 
           alt="Sakura" 
-          className="w-40 h-40 opacity-30 grayscale hover:grayscale-0 transition-all duration-700 -my-4 dark:invert" 
+          className="w-40 h-40 opacity-100 transition-all duration-700 -my-4" 
           referrerPolicy="no-referrer"
         />
 
