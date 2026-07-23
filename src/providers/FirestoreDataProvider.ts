@@ -1,5 +1,5 @@
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, deleteDoc, writeBatch } from 'firebase/firestore';
-import { initializeApp } from 'firebase/app';
+import { getFirestore, initializeFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, deleteDoc, writeBatch } from 'firebase/firestore';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { DataProvider, Habit, PeriodDoc, Periodicity, Category, UserSettings } from '../types';
 
 const firebaseConfig = {
@@ -11,12 +11,34 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
+function cleanData<T>(obj: T): T {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(cleanData) as unknown as T;
+  }
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj as any)) {
+    if (value !== undefined) {
+      result[key] = typeof value === 'object' && value !== null && !(value instanceof Date)
+        ? cleanData(value)
+        : value;
+    }
+  }
+  return result;
+}
+
 export class FirestoreDataProvider implements DataProvider {
   private db;
 
   constructor() {
-    const app = initializeApp(firebaseConfig);
-    this.db = getFirestore(app);
+    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    try {
+      this.db = initializeFirestore(app, {
+        ignoreUndefinedProperties: true
+      });
+    } catch {
+      this.db = getFirestore(app);
+    }
   }
 
   async getSettings(uid: string): Promise<UserSettings> {
@@ -34,9 +56,9 @@ export class FirestoreDataProvider implements DataProvider {
     const d = doc(this.db, 'users', uid, 'settings', 'general');
     const snap = await getDoc(d);
     if (snap.exists()) {
-      await updateDoc(d, { ...settings });
+      await updateDoc(d, cleanData({ ...settings }));
     } else {
-      await setDoc(d, { dailyObjective: 0.8, weeklyObjective: 0.8, theme: 'light', ...settings });
+      await setDoc(d, cleanData({ dailyObjective: 0.8, weeklyObjective: 0.8, theme: 'light', ...settings }));
     }
   }
 
@@ -49,7 +71,7 @@ export class FirestoreDataProvider implements DataProvider {
   async addHabit(uid: string, habit: Omit<Habit, 'id'>): Promise<string> {
     const col = collection(this.db, 'users', uid, 'habits');
     const newDoc = doc(col);
-    await setDoc(newDoc, { ...habit });
+    await setDoc(newDoc, cleanData({ ...habit }));
     return newDoc.id;
   }
 
@@ -75,15 +97,15 @@ export class FirestoreDataProvider implements DataProvider {
     const d = doc(this.db, 'users', uid, colName, periodKey);
     const snap = await getDoc(d);
     if (snap.exists()) {
-      await updateDoc(d, { ...data, updatedAt: new Date() });
+      await updateDoc(d, cleanData({ ...data, updatedAt: new Date() }));
     } else {
-      await setDoc(d, {
+      await setDoc(d, cleanData({
         done: {},
         skippedHabitIds: [],
         oneOffHabits: [],
         ...data,
         updatedAt: new Date()
-      });
+      }));
     }
   }
 

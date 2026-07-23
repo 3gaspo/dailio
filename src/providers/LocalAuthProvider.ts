@@ -6,17 +6,13 @@ export class LocalAuthProvider implements AuthProvider {
 
   constructor() {
     const stored = localStorage.getItem('dailio_user');
-    const hasVisited = localStorage.getItem('dailio_has_visited');
-    
     if (stored) {
-      this.user = JSON.parse(stored);
-    } else if (!hasVisited) {
-      // Default dev user on first visit
-      this.user = { uid: 'dev-user', email: 'dev@dailio.app' };
-      localStorage.setItem('dailio_user', JSON.stringify(this.user));
-      localStorage.setItem('dailio_has_visited', 'true');
+      try {
+        this.user = JSON.parse(stored);
+      } catch {
+        this.user = null;
+      }
     } else {
-      // If they explicitly logged out, keep them signed out
       this.user = null;
     }
   }

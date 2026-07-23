@@ -18,6 +18,8 @@ export const TodayPage: React.FC = () => {
   const [localWeeklyHabits, setLocalWeeklyHabits] = useState<any[]>([]);
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, name: string, periodicity: 'daily' | 'weekly', isOneOff: boolean } | null>(null);
   const [newName, setNewName] = useState('');
   const [newPeriodicity, setNewPeriodicity] = useState<'daily' | 'weekly'>('daily');
@@ -291,65 +293,77 @@ export const TodayPage: React.FC = () => {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !newName.trim()) return;
+    if (!user || !newName.trim() || isSubmitting) return;
 
-    if (isOneOff) {
-      const key = newPeriodicity === 'daily' ? dailyKey : weeklyKey;
-      const doc = newPeriodicity === 'daily' ? dailyDoc : weeklyDoc;
-      const stats = newPeriodicity === 'daily' ? dailyStats : weeklyStats;
-      const newId = Math.random().toString(36).substr(2, 9);
-      const newOneOff = { 
-        id: newId, 
-        name: newName.trim(),
-        categoryId: newCategoryId || undefined,
-        multiplicity: newMultiplicity > 1 ? newMultiplicity : undefined,
-        isAntiTask: isAntiTask || undefined
-      };
-      
-      let currentOrder = doc?.habitOrder ? [...doc.habitOrder] : stats.habits.map(h => h.id);
-      const uncheckedIds = currentOrder.filter(hid => !doc?.done?.[hid]);
-      const checkedIds = currentOrder.filter(hid => doc?.done?.[hid]);
-      const newHabitOrder = [...uncheckedIds, newId, ...checkedIds];
+    setIsSubmitting(true);
+    setAddError(null);
 
-      await data.updatePeriodDoc(user.uid, newPeriodicity, key, {
-        oneOffHabits: [...(doc?.oneOffHabits || []), newOneOff],
-        habitOrder: newHabitOrder
-      });
-    } else {
-      const currentHabits = await data.getHabits(user.uid);
-      const maxOrder = currentHabits
-        .filter(h => h.periodicity === newPeriodicity)
-        .reduce((max, h) => Math.max(max, h.order || 0), -1);
-      
-      const newId = await data.addHabit(user.uid, {
-        name: newName.trim(),
-        periodicity: newPeriodicity,
-        createdAt: new Date(),
-        deletedFromPeriodKey: null,
-        order: maxOrder + 1,
-        categoryId: newCategoryId || undefined,
-        multiplicity: newMultiplicity > 1 ? newMultiplicity : undefined,
-        isAntiTask: isAntiTask || undefined
-      });
+    try {
+      if (isOneOff) {
+        const key = newPeriodicity === 'daily' ? dailyKey : weeklyKey;
+        const doc = newPeriodicity === 'daily' ? dailyDoc : weeklyDoc;
+        const stats = newPeriodicity === 'daily' ? dailyStats : weeklyStats;
+        const newId = Math.random().toString(36).substr(2, 9);
+        const newOneOff: any = { 
+          id: newId, 
+          name: newName.trim(),
+        };
+        if (newCategoryId) newOneOff.categoryId = newCategoryId;
+        if (newMultiplicity > 1) newOneOff.multiplicity = newMultiplicity;
+        if (isAntiTask) newOneOff.isAntiTask = true;
+        
+        let currentOrder = doc?.habitOrder ? [...doc.habitOrder] : stats.habits.map(h => h.id);
+        const uncheckedIds = currentOrder.filter(hid => !doc?.done?.[hid]);
+        const checkedIds = currentOrder.filter(hid => doc?.done?.[hid]);
+        const newHabitOrder = [...uncheckedIds, newId, ...checkedIds];
 
-      const key = newPeriodicity === 'daily' ? dailyKey : weeklyKey;
-      const doc = newPeriodicity === 'daily' ? dailyDoc : weeklyDoc;
-      const stats = newPeriodicity === 'daily' ? dailyStats : weeklyStats;
-      
-      let currentOrder = doc?.habitOrder ? [...doc.habitOrder] : stats.habits.map(h => h.id);
-      const uncheckedIds = currentOrder.filter(hid => !doc?.done?.[hid]);
-      const checkedIds = currentOrder.filter(hid => doc?.done?.[hid]);
-      const newHabitOrder = [...uncheckedIds, newId, ...checkedIds];
-      
-      await data.updatePeriodDoc(user.uid, newPeriodicity, key, { habitOrder: newHabitOrder });
+        await data.updatePeriodDoc(user.uid, newPeriodicity, key, {
+          oneOffHabits: [...(doc?.oneOffHabits || []), newOneOff],
+          habitOrder: newHabitOrder
+        });
+      } else {
+        const currentHabits = await data.getHabits(user.uid);
+        const maxOrder = currentHabits
+          .filter(h => h.periodicity === newPeriodicity)
+          .reduce((max, h) => Math.max(max, h.order || 0), -1);
+        
+        const habitPayload: any = {
+          name: newName.trim(),
+          periodicity: newPeriodicity,
+          createdAt: new Date(),
+          deletedFromPeriodKey: null,
+          order: maxOrder + 1,
+        };
+        if (newCategoryId) habitPayload.categoryId = newCategoryId;
+        if (newMultiplicity > 1) habitPayload.multiplicity = newMultiplicity;
+        if (isAntiTask) habitPayload.isAntiTask = true;
+
+        const newId = await data.addHabit(user.uid, habitPayload);
+
+        const key = newPeriodicity === 'daily' ? dailyKey : weeklyKey;
+        const doc = newPeriodicity === 'daily' ? dailyDoc : weeklyDoc;
+        const stats = newPeriodicity === 'daily' ? dailyStats : weeklyStats;
+        
+        let currentOrder = doc?.habitOrder ? [...doc.habitOrder] : stats.habits.map(h => h.id);
+        const uncheckedIds = currentOrder.filter(hid => !doc?.done?.[hid]);
+        const checkedIds = currentOrder.filter(hid => doc?.done?.[hid]);
+        const newHabitOrder = [...uncheckedIds, newId, ...checkedIds];
+        
+        await data.updatePeriodDoc(user.uid, newPeriodicity, key, { habitOrder: newHabitOrder });
+      }
+
+      setNewName('');
+      setNewCategoryId('');
+      setNewMultiplicity(1);
+      setIsAntiTask(false);
+      setIsAddModalOpen(false);
+      await fetchData();
+    } catch (err: any) {
+      console.error("Failed to add task:", err);
+      setAddError(err.message || "Failed to add task. Please check your connection.");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setNewName('');
-    setNewCategoryId('');
-    setNewMultiplicity(1);
-    setIsAntiTask(false);
-    setIsAddModalOpen(false);
-    fetchData();
   };
 
   if (loading) return <div className="flex justify-center pt-20 font-bold text-black/20 dark:text-white/20">Loading...</div>;
@@ -576,11 +590,16 @@ export const TodayPage: React.FC = () => {
             </div>
           </div>
 
+          {addError && (
+            <p className="text-red-500 text-xs font-medium px-1">{addError}</p>
+          )}
+
           <button
             type="submit"
-            className="w-full py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-bold text-base shadow-lg active:scale-95 transition-transform mt-2"
+            disabled={isSubmitting || !newName.trim()}
+            className="w-full py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-bold text-base shadow-lg active:scale-95 transition-transform mt-2 disabled:opacity-50"
           >
-            Confirm
+            {isSubmitting ? 'Adding...' : 'Confirm'}
           </button>
         </form>
       </Modal>

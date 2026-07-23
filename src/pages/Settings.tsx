@@ -139,6 +139,8 @@ export const SettingsPage: React.FC = () => {
     setLoading(false);
   };
 
+  if (!user) return null;
+
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
       <header className="mb-12">
@@ -146,67 +148,8 @@ export const SettingsPage: React.FC = () => {
         {isDevMode && <p className="text-emerald-500 text-[10px] font-bold uppercase tracking-widest">Dev mode</p>}
       </header>
 
-      {!user ? (
-        <section className="bg-black/5 p-8 rounded-[32px]">
-          <h2 className="text-xl font-bold mb-8">{isSignUp ? 'Create account' : 'Sign in'}</h2>
-          <form onSubmit={handleAuth} className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-black/30 ml-1">
-                {isDevMode ? 'Email or Username' : 'Email'}
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-black/20" size={20} />
-                <input
-                  type={isDevMode ? "text" : "email"}
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full bg-white rounded-2xl py-4 pl-12 pr-4 outline-none focus:ring-2 ring-black/10 transition-all font-medium"
-                  placeholder={isDevMode ? "name@example.com or username" : "name@example.com"}
-                  required
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-black/30 ml-1">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-black/20" size={20} />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="w-full bg-white rounded-2xl py-4 pl-12 pr-12 outline-none focus:ring-2 ring-black/10 transition-all font-medium"
-                  placeholder="••••••••"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-black/20 hover:text-black transition-colors"
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-            </div>
-            {error && <p className="text-red-500 text-xs font-medium px-1">{error}</p>}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-5 bg-black text-white rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition-transform disabled:opacity-50"
-            >
-              {loading ? 'Processing...' : (isSignUp ? 'Sign up' : 'Sign in')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="w-full text-sm font-bold text-black/40 hover:text-black transition-colors"
-            >
-              {isSignUp ? 'Already have an account? Sign in' : 'New here? Create an account'}
-            </button>
-          </form>
-        </section>
-      ) : (
-        <div className="space-y-4">
-          <section className="bg-black/5 dark:bg-white/5 p-8 rounded-[32px] mb-8">
+      <div className="space-y-4">
+        <section className="bg-black/5 dark:bg-white/5 p-8 rounded-[32px] mb-8">
             <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black/30 dark:text-white/30 mb-6">Appearance</h2>
             <div className="flex items-center justify-between bg-white dark:bg-black/20 p-4 rounded-2xl shadow-sm">
               <span className="font-bold dark:text-white">Dark Mode</span>
@@ -348,7 +291,6 @@ export const SettingsPage: React.FC = () => {
             </div>
           </button>
         </div>
-      )}
 
       <Modal 
         isOpen={isResetModalOpen} 

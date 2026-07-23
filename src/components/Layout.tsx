@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { CheckCircle2, Calendar, BarChart3, Settings } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { AuthWindow } from './AuthWindow';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -11,6 +12,7 @@ function cn(...inputs: ClassValue[]) {
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <div className="min-h-screen bg-[#FDFDFD] dark:bg-[#0A0A0A] text-[#1A1A1A] dark:text-[#FDFDFD] pb-20 font-sans transition-colors duration-300">
+      <AuthWindow />
       <main className="max-w-md mx-auto px-6 pt-12">
         {children}
       </main>
