@@ -5,6 +5,7 @@ export type Periodicity = 'daily' | 'weekly';
 export interface Category {
   id: string;
   name: string;
+  color?: string;
 }
 
 export interface Habit {
@@ -78,6 +79,7 @@ export interface DataProvider {
 
   // Categories
   getCategories: (uid: string) => Promise<Category[]>;
-  addCategory: (uid: string, name: string) => Promise<string>;
+  addCategory: (uid: string, name: string, color?: string) => Promise<string>;
+  updateCategory: (uid: string, categoryId: string, data: Partial<Category>) => Promise<void>;
   deleteCategory: (uid: string, categoryId: string) => Promise<void>;
 }

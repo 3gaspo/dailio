@@ -3,6 +3,7 @@ import { useApp } from '../providers/AppProvider';
 import { getDailyKey, getWeeklyKey } from '../utils/dateUtils';
 import { computePeriodStats } from '../utils/habitLogic';
 import { Habit, PeriodDoc } from '../types';
+import { CategoryDropdown } from '../components/CategoryDropdown';
 import { motion } from 'motion/react';
 import { startOfMonth, eachDayOfInterval, eachWeekOfInterval, startOfYear, endOfMonth, subDays, max, startOfDay, isBefore } from 'date-fns';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
@@ -186,27 +187,14 @@ export const StatisticsPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="mb-8 relative">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-black/30 dark:text-white/30 mb-2 ml-1">Filter by category</div>
-          <div className="relative">
-            <select
-              value={selectedCategoryId}
-              onChange={(e) => setSelectedCategoryId(e.target.value)}
-              className="w-full bg-black/5 dark:bg-white/5 border-none rounded-2xl px-6 py-4 font-bold text-sm uppercase tracking-widest focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 dark:text-white outline-none cursor-pointer appearance-none"
-            >
-              <option value="" className="dark:bg-neutral-900">All</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id} className="dark:bg-neutral-900">
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-            <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-black/20 dark:text-white/20">
-              <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1 1L6 6L11 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </div>
-          </div>
+        <div className="mb-8">
+          <CategoryDropdown
+            categories={categories}
+            value={selectedCategoryId}
+            onChange={(val) => setSelectedCategoryId(val)}
+            label="Filter by category"
+            allLabel="All categories"
+          />
         </div>
       </header>
 

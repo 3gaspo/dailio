@@ -3,9 +3,11 @@ import { useApp } from '../providers/AppProvider';
 import { getDailyKey, getWeeklyKey } from '../utils/dateUtils';
 import { computePeriodStats, PeriodStats } from '../utils/habitLogic';
 import { Habit, PeriodDoc } from '../types';
-import { Plus, Trash2, Check, GripVertical, ArrowUpDown, X } from 'lucide-react';
+import { Plus, Trash2, Check, GripVertical, ArrowUpDown, X, Filter } from 'lucide-react';
 import { Modal } from '../components/Modal';
+import { CategoryDropdown } from '../components/CategoryDropdown';
 import { motion, Reorder, AnimatePresence } from 'motion/react';
+import { getCategoryColor, getContrastColor } from '../utils/categoryUtils';
 
 export const TodayPage: React.FC = () => {
   const { user, data, categories } = useApp();
@@ -16,6 +18,7 @@ export const TodayPage: React.FC = () => {
   const [isReorderMode, setIsReorderMode] = useState(false);
   const [localDailyHabits, setLocalDailyHabits] = useState<any[]>([]);
   const [localWeeklyHabits, setLocalWeeklyHabits] = useState<any[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -86,6 +89,22 @@ export const TodayPage: React.FC = () => {
       setLocalWeeklyHabits(staticOrder);
     }
   }, [weeklyStats.habits, isReorderMode]);
+
+  const displayDailyHabits = useMemo(() => {
+    if (selectedCategoryId === 'all') return localDailyHabits;
+    return localDailyHabits.filter(h => h.categoryId === selectedCategoryId);
+  }, [localDailyHabits, selectedCategoryId]);
+
+  const displayWeeklyHabits = useMemo(() => {
+    if (selectedCategoryId === 'all') return localWeeklyHabits;
+    return localWeeklyHabits.filter(h => h.categoryId === selectedCategoryId);
+  }, [localWeeklyHabits, selectedCategoryId]);
+
+  useEffect(() => {
+    if (isAddModalOpen && selectedCategoryId !== 'all') {
+      setNewCategoryId(selectedCategoryId);
+    }
+  }, [isAddModalOpen, selectedCategoryId]);
 
   const handleToggle = async (id: string, periodicity: 'daily' | 'weekly', current: boolean) => {
     if (!user || isReorderMode) return;
@@ -387,10 +406,22 @@ export const TodayPage: React.FC = () => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-      <header className="mb-12">
+      <header className="mb-8">
         <h1 className="text-4xl font-bold tracking-tight mb-2 dark:text-white">Today</h1>
         <p className="text-black/40 dark:text-white/40 font-medium">{todayStr}</p>
       </header>
+
+      {categories.length > 0 && (
+        <div className="mb-8">
+          <CategoryDropdown
+            categories={categories}
+            value={selectedCategoryId}
+            onChange={(val) => setSelectedCategoryId(val)}
+            label="Filter by category"
+            allLabel="All categories"
+          />
+        </div>
+      )}
 
       <section className="mb-12">
         <div className="flex justify-between items-center mb-6">
@@ -410,11 +441,11 @@ export const TodayPage: React.FC = () => {
         </div>
         <Reorder.Group 
           axis="y" 
-          values={localDailyHabits} 
+          values={displayDailyHabits} 
           onReorder={(newOrder) => handleReorder(newOrder, 'daily')} 
           className="space-y-3"
         >
-          {localDailyHabits.map(h => (
+          {displayDailyHabits.map(h => (
             <Reorder.Item key={h.id} value={h} dragListener={isReorderMode}>
               <HabitRow 
                 habit={h} 
@@ -426,7 +457,11 @@ export const TodayPage: React.FC = () => {
               />
             </Reorder.Item>
           ))}
-          {localDailyHabits.length === 0 && <p className="text-black/20 dark:text-white/20 italic text-sm">No daily habits for today</p>}
+          {displayDailyHabits.length === 0 && (
+            <p className="text-black/20 dark:text-white/20 italic text-sm">
+              {selectedCategoryId === 'all' ? "No daily habits for today" : "No daily habits in this category"}
+            </p>
+          )}
         </Reorder.Group>
       </section>
 
@@ -434,11 +469,11 @@ export const TodayPage: React.FC = () => {
         <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black/30 dark:text-white/30 mb-6">Weekly habits</h2>
         <Reorder.Group 
           axis="y" 
-          values={localWeeklyHabits} 
+          values={displayWeeklyHabits} 
           onReorder={(newOrder) => handleReorder(newOrder, 'weekly')} 
           className="space-y-3"
         >
-          {localWeeklyHabits.map(h => (
+          {displayWeeklyHabits.map(h => (
             <Reorder.Item key={h.id} value={h} dragListener={isReorderMode}>
               <HabitRow 
                 habit={h} 
@@ -450,7 +485,11 @@ export const TodayPage: React.FC = () => {
               />
             </Reorder.Item>
           ))}
-          {localWeeklyHabits.length === 0 && <p className="text-black/20 dark:text-white/20 italic text-sm">No weekly habits for this week</p>}
+          {displayWeeklyHabits.length === 0 && (
+            <p className="text-black/20 dark:text-white/20 italic text-sm">
+              {selectedCategoryId === 'all' ? "No weekly habits for this week" : "No weekly habits in this category"}
+            </p>
+          )}
         </Reorder.Group>
       </section>
 
@@ -572,21 +611,33 @@ export const TodayPage: React.FC = () => {
               >
                 None
               </button>
-              {categories.map(cat => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setNewCategoryId(cat.id)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all border",
-                    newCategoryId === cat.id 
-                      ? "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white" 
-                      : "bg-white dark:bg-black text-black/40 dark:text-white/40 border-black/5 dark:border-white/5 hover:border-black/20 dark:hover:border-white/20"
-                  )}
-                >
-                  {cat.name}
-                </button>
-              ))}
+              {categories.map(cat => {
+                const catColor = getCategoryColor(cat);
+                const textColor = getContrastColor(catColor);
+                const isSelected = newCategoryId === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setNewCategoryId(cat.id)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border shrink-0 flex items-center gap-1.5",
+                      isSelected
+                        ? "shadow-sm border-transparent scale-105"
+                        : "bg-white dark:bg-black/20 text-black/70 dark:text-white/70 border-black/5 dark:border-white/5 hover:border-black/20 dark:hover:border-white/20"
+                    )}
+                    style={isSelected ? { backgroundColor: catColor, color: textColor } : {}}
+                  >
+                    {!isSelected && (
+                      <span 
+                        className="w-2 h-2 rounded-full inline-block shrink-0" 
+                        style={{ backgroundColor: catColor }}
+                      />
+                    )}
+                    {cat.name}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -642,6 +693,8 @@ const HabitRow: React.FC<{
   onDelete: () => void 
 }> = ({ habit, categories, isReorderMode, onToggle, onSubToggle, onDelete }) => {
   const category = categories.find(c => c.id === habit.categoryId);
+  const catColor = category ? getCategoryColor(category) : '#6B7280';
+  const textColor = getContrastColor(catColor);
 
   return (
     <div className={cn(
@@ -683,7 +736,10 @@ const HabitRow: React.FC<{
             )}
           </div>
           {category && (
-            <span className="text-[9px] font-black uppercase tracking-[0.15em] px-2 py-1 bg-black dark:bg-white text-white/90 dark:text-black/90 rounded-md whitespace-nowrap shrink-0">
+            <span 
+              className="text-[9px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-md whitespace-nowrap shrink-0 shadow-xs"
+              style={{ backgroundColor: catColor, color: textColor }}
+            >
               {category.name}
             </span>
           )}

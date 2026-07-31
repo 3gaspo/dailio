@@ -1,6 +1,7 @@
 import { getFirestore, initializeFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, deleteDoc, writeBatch } from 'firebase/firestore';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { DataProvider, Habit, PeriodDoc, Periodicity, Category, UserSettings } from '../types';
+import { getCategoryDefaultColor } from '../utils/categoryUtils';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -141,26 +142,46 @@ export class FirestoreDataProvider implements DataProvider {
     const col = collection(this.db, 'users', uid, 'categories');
     const snap = await getDocs(col);
     if (snap.empty) {
-      const defaults = ['Chores', 'Sport', 'Culture', 'Work', 'Social', 'Projects'];
+      const defaults = [
+        { name: 'Chores', color: '#EAB308' },
+        { name: 'Sport', color: '#F97316' },
+        { name: 'Culture', color: '#22C55E' },
+        { name: 'Work', color: '#3B82F6' },
+        { name: 'Social', color: '#EC4899' },
+        { name: 'Projects', color: '#A855F7' }
+      ];
       const batch = writeBatch(this.db);
       const created: Category[] = [];
-      for (const name of defaults) {
+      for (const item of defaults) {
         const newDoc = doc(col);
-        const cat = { id: newDoc.id, name };
-        batch.set(newDoc, { name });
+        const cat = { id: newDoc.id, name: item.name, color: item.color };
+        batch.set(newDoc, cleanData({ name: item.name, color: item.color }));
         created.push(cat);
       }
       await batch.commit();
       return created;
     }
-    return snap.docs.map(d => ({ id: d.id, name: d.data().name } as Category));
+    return snap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        name: data.name,
+        color: data.color || getCategoryDefaultColor(data.name)
+      } as Category;
+    });
   }
 
-  async addCategory(uid: string, name: string): Promise<string> {
+  async addCategory(uid: string, name: string, color?: string): Promise<string> {
     const col = collection(this.db, 'users', uid, 'categories');
     const newDoc = doc(col);
-    await setDoc(newDoc, { name });
+    const catColor = color || getCategoryDefaultColor(name);
+    await setDoc(newDoc, cleanData({ name, color: catColor }));
     return newDoc.id;
+  }
+
+  async updateCategory(uid: string, categoryId: string, data: Partial<Category>): Promise<void> {
+    const d = doc(this.db, 'users', uid, 'categories', categoryId);
+    await updateDoc(d, cleanData(data));
   }
 
   async deleteCategory(uid: string, categoryId: string): Promise<void> {

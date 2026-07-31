@@ -1,4 +1,5 @@
 import { DataProvider, Habit, PeriodDoc, Periodicity, Category, UserSettings, ResetOption } from '../types';
+import { getCategoryDefaultColor } from '../utils/categoryUtils';
 
 export class LocalDataProvider implements DataProvider {
   private getStorageKey(uid: string, type: string) {
@@ -100,25 +101,39 @@ export class LocalDataProvider implements DataProvider {
     const data = localStorage.getItem(this.getStorageKey(uid, 'categories'));
     if (!data) {
       const defaults = [
-        { id: 'cat_chores', name: 'Chores' },
-        { id: 'cat_sport', name: 'Sport' },
-        { id: 'cat_culture', name: 'Culture' },
-        { id: 'cat_work', name: 'Work' },
-        { id: 'cat_social', name: 'Social' },
-        { id: 'cat_projects', name: 'Projects' }
+        { id: 'cat_chores', name: 'Chores', color: '#EAB308' },
+        { id: 'cat_sport', name: 'Sport', color: '#F97316' },
+        { id: 'cat_culture', name: 'Culture', color: '#22C55E' },
+        { id: 'cat_work', name: 'Work', color: '#3B82F6' },
+        { id: 'cat_social', name: 'Social', color: '#EC4899' },
+        { id: 'cat_projects', name: 'Projects', color: '#A855F7' }
       ];
       localStorage.setItem(this.getStorageKey(uid, 'categories'), JSON.stringify(defaults));
       return defaults;
     }
-    return JSON.parse(data);
+    const parsed: Category[] = JSON.parse(data);
+    return parsed.map(c => ({
+      ...c,
+      color: c.color || getCategoryDefaultColor(c.name)
+    }));
   }
 
-  async addCategory(uid: string, name: string): Promise<string> {
+  async addCategory(uid: string, name: string, color?: string): Promise<string> {
     const categories = await this.getCategories(uid);
     const id = Math.random().toString(36).substr(2, 9);
-    categories.push({ id, name });
+    const catColor = color || getCategoryDefaultColor(name);
+    categories.push({ id, name, color: catColor });
     localStorage.setItem(this.getStorageKey(uid, 'categories'), JSON.stringify(categories));
     return id;
+  }
+
+  async updateCategory(uid: string, categoryId: string, data: Partial<Category>): Promise<void> {
+    const categories = await this.getCategories(uid);
+    const cat = categories.find(c => c.id === categoryId);
+    if (cat) {
+      Object.assign(cat, data);
+      localStorage.setItem(this.getStorageKey(uid, 'categories'), JSON.stringify(categories));
+    }
   }
 
   async deleteCategory(uid: string, categoryId: string): Promise<void> {

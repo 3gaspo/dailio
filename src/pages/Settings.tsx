@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useApp } from '../providers/AppProvider';
 import { motion } from 'motion/react';
-import { LogOut, Download, RotateCcw, User, Mail, Lock, Eye, EyeOff, Trash2, History, Heart } from 'lucide-react';
+import { LogOut, Download, RotateCcw, User, Mail, Lock, Eye, EyeOff, Trash2, History, Heart, Palette } from 'lucide-react';
 import { getDailyKey, getWeeklyKey } from '../utils/dateUtils';
 import { computePeriodStats } from '../utils/habitLogic';
 import { startOfYear, eachDayOfInterval } from 'date-fns';
 import { Modal } from '../components/Modal';
 import { ResetOption } from '../types';
+import { PRESET_COLORS, getCategoryColor, getContrastColor, getCategoryDefaultColor } from '../utils/categoryUtils';
 import pkg from '../../package.json';
 
 export const SettingsPage: React.FC = () => {
@@ -19,6 +20,7 @@ export const SettingsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryColor, setNewCategoryColor] = useState('#EAB308');
 
   const [localDailyObj, setLocalDailyObj] = useState(settings.dailyObjective);
   const [localWeeklyObj, setLocalWeeklyObj] = useState(settings.weeklyObjective);
@@ -43,13 +45,24 @@ export const SettingsPage: React.FC = () => {
     if (!user || !newCategoryName.trim()) return;
     setLoading(true);
     try {
-      await data.addCategory(user.uid, newCategoryName.trim());
+      const color = newCategoryColor || getCategoryDefaultColor(newCategoryName.trim());
+      await data.addCategory(user.uid, newCategoryName.trim(), color);
       setNewCategoryName('');
       await refreshCategories();
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateCategoryColor = async (id: string, color: string) => {
+    if (!user) return;
+    try {
+      await data.updateCategory(user.uid, id, { color });
+      await refreshCategories();
+    } catch (err: any) {
+      setError(err.message);
     }
   };
 
@@ -211,34 +224,93 @@ export const SettingsPage: React.FC = () => {
 
           <section className="bg-black/5 dark:bg-white/5 p-8 rounded-[32px] mb-8">
             <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black/30 dark:text-white/30 mb-6">Categories</h2>
-            <div className="space-y-3 mb-6">
-              {categories.map(cat => (
-                <div key={cat.id} className="flex items-center justify-between bg-white dark:bg-black/20 p-4 rounded-2xl shadow-sm">
-                  <span className="font-bold dark:text-white">{cat.name}</span>
-                  <button 
-                    onClick={() => handleDeleteCategory(cat.id)}
-                    className="p-2 text-black/10 dark:text-white/10 hover:text-red-500 transition-colors"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              ))}
+            <div className="space-y-4 mb-6">
+              {categories.map(cat => {
+                const catColor = getCategoryColor(cat);
+                const textColor = getContrastColor(catColor);
+                return (
+                  <div key={cat.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white dark:bg-black/20 p-4 rounded-2xl shadow-sm gap-3">
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span 
+                        className="text-xs font-black uppercase tracking-[0.15em] px-3 py-1.5 rounded-lg shadow-sm"
+                        style={{ backgroundColor: catColor, color: textColor }}
+                      >
+                        {cat.name}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none">
+                      {PRESET_COLORS.map(preset => (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => handleUpdateCategoryColor(cat.id, preset.hex)}
+                          className={cn(
+                            "w-6 h-6 rounded-full shrink-0 transition-transform hover:scale-110 active:scale-95 border-2",
+                            catColor.toLowerCase() === preset.hex.toLowerCase() 
+                              ? "border-black dark:border-white scale-110 shadow-sm" 
+                              : "border-transparent opacity-80 hover:opacity-100"
+                          )}
+                          style={{ backgroundColor: preset.hex }}
+                          title={`${preset.name} (${preset.hex})`}
+                        />
+                      ))}
+                      <div className="relative w-6 h-6 rounded-full shrink-0 overflow-hidden border border-black/20 dark:border-white/20 hover:scale-110 transition-transform cursor-pointer" title="Custom color">
+                        <input 
+                          type="color" 
+                          value={catColor}
+                          onChange={(e) => handleUpdateCategoryColor(cat.id, e.target.value)}
+                          className="absolute -top-2 -left-2 w-10 h-10 cursor-pointer bg-transparent border-0 p-0"
+                        />
+                      </div>
+                      <button 
+                        onClick={() => handleDeleteCategory(cat.id)}
+                        className="p-1.5 ml-1 text-black/20 dark:text-white/20 hover:text-red-500 transition-colors"
+                        title="Delete category"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <form onSubmit={handleAddCategory} className="flex gap-2">
-              <input 
-                type="text"
-                value={newCategoryName}
-                onChange={e => setNewCategoryName(e.target.value)}
-                placeholder="New category..."
-                className="flex-1 bg-white dark:bg-black/20 rounded-xl px-4 py-3 outline-none focus:ring-2 ring-black/5 dark:ring-white/5 font-medium text-sm dark:text-white"
-              />
-              <button 
-                type="submit"
-                disabled={loading || !newCategoryName.trim()}
-                className="bg-black dark:bg-white dark:text-black text-white px-6 rounded-xl font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
-              >
-                Add
-              </button>
+
+            <form onSubmit={handleAddCategory} className="space-y-3">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-black/40 dark:text-white/40 ml-1">Add new category</div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input 
+                  type="text"
+                  value={newCategoryName}
+                  onChange={e => {
+                    const name = e.target.value;
+                    setNewCategoryName(name);
+                    if (name.trim()) {
+                      setNewCategoryColor(getCategoryDefaultColor(name));
+                    }
+                  }}
+                  placeholder="New category name..."
+                  className="flex-1 bg-white dark:bg-black/20 rounded-xl px-4 py-3 outline-none focus:ring-2 ring-black/5 dark:ring-white/5 font-medium text-sm dark:text-white"
+                />
+                <div className="flex items-center gap-2 bg-white dark:bg-black/20 rounded-xl px-3 py-2">
+                  <span className="text-xs font-bold text-black/40 dark:text-white/40">Color:</span>
+                  <div className="relative w-7 h-7 rounded-full overflow-hidden border border-black/10 dark:border-white/10 shrink-0">
+                    <input 
+                      type="color" 
+                      value={newCategoryColor}
+                      onChange={e => setNewCategoryColor(e.target.value)}
+                      className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer bg-transparent border-0 p-0"
+                    />
+                  </div>
+                </div>
+                <button 
+                  type="submit"
+                  disabled={loading || !newCategoryName.trim()}
+                  className="bg-black dark:bg-white dark:text-black text-white px-6 py-3 rounded-xl font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
+                >
+                  Add
+                </button>
+              </div>
             </form>
           </section>
 
