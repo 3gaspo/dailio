@@ -28,12 +28,20 @@ export interface OneOffHabit {
   isAntiTask?: boolean;
 }
 
+export interface TaskGroup {
+  id: string;
+  name: string;
+  habitIds: string[];
+  periodicity: Periodicity;
+}
+
 export interface PeriodDoc {
   done: Record<string, boolean>;
   subDone?: Record<string, number>;
   skippedHabitIds: string[];
   oneOffHabits: OneOffHabit[];
   habitOrder?: string[];
+  taskGroups?: TaskGroup[];
   isAbsent?: boolean;
   updatedAt: Date | Timestamp;
 }
