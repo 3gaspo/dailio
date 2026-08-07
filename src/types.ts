@@ -65,6 +65,10 @@ export interface UserSettings {
   dailyObjective: number; // 0 to 1
   weeklyObjective: number; // 0 to 1
   theme?: 'light' | 'dark';
+  defaultDailyHabitOrder?: string[];
+  defaultDailyTaskGroups?: TaskGroup[];
+  defaultWeeklyHabitOrder?: string[];
+  defaultWeeklyTaskGroups?: TaskGroup[];
 }
 
 export interface DataProvider {
