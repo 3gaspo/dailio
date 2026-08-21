@@ -1,12 +1,33 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useApp } from '../providers/AppProvider';
 import { getDailyKey, getWeeklyKey } from '../utils/dateUtils';
 import { computePeriodStats } from '../utils/habitLogic';
 import { Habit, PeriodDoc } from '../types';
 import { CategoryDropdown } from '../components/CategoryDropdown';
+import { getCategoryColor } from '../utils/categoryUtils';
 import { motion } from 'motion/react';
-import { startOfMonth, eachDayOfInterval, eachWeekOfInterval, startOfYear, endOfMonth, subDays, max, startOfDay, isBefore } from 'date-fns';
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { 
+  startOfMonth, 
+  eachDayOfInterval, 
+  eachWeekOfInterval, 
+  startOfYear, 
+  subDays, 
+  max, 
+  startOfDay, 
+  isBefore,
+  startOfISOWeek
+} from 'date-fns';
+import { 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  ResponsiveContainer, 
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
 
 export const StatisticsPage: React.FC = () => {
   const { user, data, categories, settings } = useApp();
@@ -14,7 +35,8 @@ export const StatisticsPage: React.FC = () => {
     return (localStorage.getItem('dailio_stats_view') as 'daily' | 'weekly') || 'daily';
   });
   const [range, setRange] = useState<'month' | 'year'>('month');
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
+  const [categoryRateTimeframe, setCategoryRateTimeframe] = useState<'week' | 'year'>('week');
   const [habits, setHabits] = useState<Habit[]>([]);
   const [periodDocs, setPeriodDocs] = useState<Record<string, PeriodDoc>>({});
   const [loading, setLoading] = useState(true);
@@ -144,6 +166,165 @@ export const StatisticsPage: React.FC = () => {
     return Math.round((totalRatio / validPeriods) * 100);
   })();
 
+  // 1. Compute Category Success Rates (for horizontal histogram)
+  const categorySuccessRates = useMemo(() => {
+    if (habits.length === 0) return [];
+
+    const categoryMap = new Map<string, { id: string; name: string; color: string; to_do: number; done: number }>();
+    
+    categories.forEach(cat => {
+      categoryMap.set(cat.id, {
+        id: cat.id,
+        name: cat.name,
+        color: getCategoryColor(cat),
+        to_do: 0,
+        done: 0
+      });
+    });
+
+    const uncategorizedKey = 'uncategorized';
+    categoryMap.set(uncategorizedKey, {
+      id: uncategorizedKey,
+      name: 'Non categorized',
+      color: '#6B7280',
+      to_do: 0,
+      done: 0
+    });
+
+    if (categoryRateTimeframe === 'week') {
+      if (view === 'daily') {
+        // Current day for daily view
+        const key = getDailyKey();
+        const doc = periodDocs[key] || null;
+        if (!doc?.isAbsent) {
+          const stats = computePeriodStats(key, 'daily', habits, doc);
+          stats.habits.forEach(h => {
+            const catId = (h.categoryId && categoryMap.has(h.categoryId)) ? h.categoryId : uncategorizedKey;
+            const bucket = categoryMap.get(catId)!;
+            bucket.to_do += 1;
+            if (h.completed) bucket.done += 1;
+          });
+        }
+      } else {
+        // Current week for weekly view
+        const key = getWeeklyKey();
+        const doc = periodDocs[key] || null;
+        if (!doc?.isAbsent) {
+          const stats = computePeriodStats(key, 'weekly', habits, doc);
+          stats.habits.forEach(h => {
+            const catId = (h.categoryId && categoryMap.has(h.categoryId)) ? h.categoryId : uncategorizedKey;
+            const bucket = categoryMap.get(catId)!;
+            bucket.to_do += 1;
+            if (h.completed) bucket.done += 1;
+          });
+        }
+      }
+    } else {
+      // Year average across the selected view (daily or weekly tasks)
+      const habitDates = habits.map(h => {
+        return h.createdAt instanceof Date 
+          ? h.createdAt 
+          : (h.createdAt && typeof (h.createdAt as any).toDate === 'function')
+            ? (h.createdAt as any).toDate()
+            : new Date(h.createdAt as any);
+      });
+      const firstHabitDate = habitDates.length > 0 ? new Date(Math.min(...habitDates.map(d => d.getTime()))) : new Date();
+      const start = max([startOfYear(new Date()), startOfDay(firstHabitDate)]);
+      const end = new Date();
+
+      if (!isBefore(end, start)) {
+        if (view === 'daily') {
+          const days = eachDayOfInterval({ start, end });
+          days.forEach(d => {
+            const key = getDailyKey(d);
+            const doc = periodDocs[key] || null;
+            if (doc?.isAbsent) return;
+            const stats = computePeriodStats(key, 'daily', habits, doc);
+            stats.habits.forEach(h => {
+              const catId = (h.categoryId && categoryMap.has(h.categoryId)) ? h.categoryId : uncategorizedKey;
+              const bucket = categoryMap.get(catId)!;
+              bucket.to_do += 1;
+              if (h.completed) bucket.done += 1;
+            });
+          });
+        } else {
+          const weeks = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
+          weeks.forEach(w => {
+            const key = getWeeklyKey(w);
+            const doc = periodDocs[key] || null;
+            if (doc?.isAbsent) return;
+            const stats = computePeriodStats(key, 'weekly', habits, doc);
+            stats.habits.forEach(h => {
+              const catId = (h.categoryId && categoryMap.has(h.categoryId)) ? h.categoryId : uncategorizedKey;
+              const bucket = categoryMap.get(catId)!;
+              bucket.to_do += 1;
+              if (h.completed) bucket.done += 1;
+            });
+          });
+        }
+      }
+    }
+
+    const items = Array.from(categoryMap.values()).map(cat => ({
+      ...cat,
+      rate: cat.to_do === 0 ? 0 : Math.round((cat.done / cat.to_do) * 100)
+    }));
+
+    // Keep uncategorized if it has tasks or if there are no custom categories
+    return items.filter(cat => cat.id !== uncategorizedKey || cat.to_do > 0 || categories.length === 0);
+  }, [habits, categories, periodDocs, view, categoryRateTimeframe]);
+
+  // 2. Compute Task Repartition across categories (for Pie chart)
+  const categoryPieData = useMemo(() => {
+    if (habits.length === 0) return { items: [], total: 0 };
+
+    const categoryMap = new Map<string, { id: string; name: string; color: string; count: number }>();
+    
+    categories.forEach(cat => {
+      categoryMap.set(cat.id, {
+        id: cat.id,
+        name: cat.name,
+        color: getCategoryColor(cat),
+        count: 0
+      });
+    });
+
+    const uncategorizedKey = 'uncategorized';
+    categoryMap.set(uncategorizedKey, {
+      id: uncategorizedKey,
+      name: 'Non categorized',
+      color: '#6B7280',
+      count: 0
+    });
+
+    const currentDoc = periodDocs[currentKey] || null;
+    const activeHabits = [
+      ...habits.filter(h => h.periodicity === view && !h.deletedFromPeriodKey),
+      ...(currentDoc?.oneOffHabits || [])
+    ];
+
+    activeHabits.forEach(h => {
+      const catId = (h.categoryId && categoryMap.has(h.categoryId)) ? h.categoryId : uncategorizedKey;
+      const bucket = categoryMap.get(catId)!;
+      bucket.count += 1;
+    });
+
+    const total = activeHabits.length;
+    if (total === 0) return { items: [], total: 0 };
+
+    const items = Array.from(categoryMap.values())
+      .filter(cat => cat.count > 0)
+      .map(cat => ({
+        id: cat.id,
+        name: cat.name,
+        value: cat.count,
+        color: cat.color,
+        percentage: Math.round((cat.count / total) * 100)
+      }));
+
+    return { items, total };
+  }, [habits, categories, periodDocs, currentKey, view]);
+
   if (loading) return <div className="text-center py-20 font-bold text-black/20 dark:text-white/20">Loading...</div>;
 
   if (!user) {
@@ -162,7 +343,7 @@ export const StatisticsPage: React.FC = () => {
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="pb-16">
       <header className="mb-12">
         <h1 className="text-4xl font-bold tracking-tight mb-8 dark:text-white">Statistics</h1>
         
@@ -215,7 +396,8 @@ export const StatisticsPage: React.FC = () => {
         </div>
       </div>
 
-      <section className="bg-black/5 dark:bg-white/5 p-6 rounded-[32px]">
+      {/* Time Series Area Chart */}
+      <section className="bg-black/5 dark:bg-white/5 p-6 rounded-[32px] mb-8">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-lg font-bold dark:text-white">Past success rate</h2>
           <div className="flex gap-2 bg-black/5 dark:bg-white/5 p-1 rounded-xl">
@@ -256,7 +438,7 @@ export const StatisticsPage: React.FC = () => {
                   if (active && payload && payload.length) {
                     const data = payload[0].payload;
                     return (
-                      <div className="bg-black dark:bg-white text-white dark:text-black px-3 py-2 rounded-xl text-xs font-bold">
+                      <div className="bg-black dark:bg-white text-white dark:text-black px-3 py-2 rounded-xl text-xs font-bold shadow-lg">
                         {data.isAbsent ? 'Absent' : `${payload[0].value}%`}
                       </div>
                     );
@@ -275,6 +457,158 @@ export const StatisticsPage: React.FC = () => {
             </AreaChart>
           </ResponsiveContainer>
         </div>
+      </section>
+
+      {/* Per-Category Horizontal Histogram */}
+      <section className="bg-black/5 dark:bg-white/5 p-6 rounded-[32px] mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-bold dark:text-white">Category rates</h2>
+          <div className="flex gap-1.5 bg-black/5 dark:bg-white/5 p-1 rounded-xl">
+            <button
+              onClick={() => setCategoryRateTimeframe('week')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all", 
+                categoryRateTimeframe === 'week' 
+                  ? "bg-white dark:bg-white/10 shadow-sm text-black dark:text-white" 
+                  : "text-black/30 dark:text-white/30"
+              )}
+            >
+              Current
+            </button>
+            <button
+              onClick={() => setCategoryRateTimeframe('year')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all", 
+                categoryRateTimeframe === 'year' 
+                  ? "bg-white dark:bg-white/10 shadow-sm text-black dark:text-white" 
+                  : "text-black/30 dark:text-white/30"
+              )}
+            >
+              Year average
+            </button>
+          </div>
+        </div>
+
+        {categorySuccessRates.length === 0 ? (
+          <p className="text-black/30 dark:text-white/30 text-xs font-medium py-4 text-center">
+            No category tasks found.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {categorySuccessRates.map(cat => (
+              <div key={cat.id} className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span 
+                      className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs" 
+                      style={{ backgroundColor: cat.color }} 
+                    />
+                    <span className="font-bold text-black/90 dark:text-white/90 truncate">
+                      {cat.name}
+                    </span>
+                    <span className="text-[10px] text-black/40 dark:text-white/40 font-medium shrink-0">
+                      ({cat.done}/{cat.to_do})
+                    </span>
+                  </div>
+                  <span className="font-bold text-sm text-black dark:text-white shrink-0 ml-2">
+                    {cat.to_do === 0 ? '-' : `${cat.rate}%`}
+                  </span>
+                </div>
+
+                <div className="w-full h-3 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden p-0.5">
+                  <div 
+                    className="h-full rounded-full transition-all duration-500 ease-out"
+                    style={{ 
+                      width: `${cat.to_do === 0 ? 0 : Math.max(cat.rate, 3)}%`, 
+                      backgroundColor: cat.color 
+                    }} 
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Category Task Repartition Pie Chart */}
+      <section className="bg-black/5 dark:bg-white/5 p-6 rounded-[32px]">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-bold dark:text-white">Task distribution</h2>
+        </div>
+
+        {categoryPieData.items.length === 0 ? (
+          <p className="text-black/30 dark:text-white/30 text-xs font-medium py-8 text-center">
+            No active tasks found for this view.
+          </p>
+        ) : (
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            <div className="w-48 h-48 shrink-0 relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Tooltip 
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-black text-white px-3 py-2 rounded-xl text-xs font-bold shadow-xl border border-white/10 z-50">
+                            <div className="flex items-center gap-1.5 mb-0.5 text-white">
+                              <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: data.color }} />
+                              <span className="text-white font-bold">{data.name}</span>
+                            </div>
+                            <div className="text-white/80 text-[10px] font-medium">
+                              {data.value} {data.value === 1 ? 'task' : 'tasks'} ({data.percentage}%)
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Pie
+                    data={categoryPieData.items}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={75}
+                    paddingAngle={3}
+                    stroke="transparent"
+                  >
+                    {categoryPieData.items.map(entry => (
+                      <Cell key={entry.id} fill={entry.color} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-2xl font-bold text-black dark:text-white">{categoryPieData.total}</span>
+                <span className="text-[9px] uppercase font-bold tracking-widest text-black/30 dark:text-white/30">Total</span>
+              </div>
+            </div>
+
+            <div className="flex-1 w-full space-y-2.5">
+              {categoryPieData.items.map(item => (
+                <div key={item.id} className="flex items-center justify-between text-xs py-1 border-b border-black/5 dark:border-white/5 last:border-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span 
+                      className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs" 
+                      style={{ backgroundColor: item.color }} 
+                    />
+                    <span className="font-bold text-black/90 dark:text-white/90 truncate">
+                      {item.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    <span className="font-bold text-black/60 dark:text-white/60">
+                      {item.value} {item.value === 1 ? 'task' : 'tasks'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
     </motion.div>
   );

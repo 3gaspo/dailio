@@ -28,11 +28,12 @@ export const computePeriodStats = (
 ): PeriodStats => {
   const isAbsent = !!periodDoc?.isAbsent;
   const habits: (ComputedHabit & { completed: boolean })[] = [];
+  const filterCat = categoryId && categoryId !== 'all' ? categoryId : null;
   
   // 1. Recurring habits
   const recurring = allHabits.filter(h => {
     if (h.periodicity !== periodicity) return false;
-    if (categoryId && h.categoryId !== categoryId) return false;
+    if (filterCat && h.categoryId !== filterCat) return false;
     
     // createdAt is on/before the period
     const periodStart = periodicity === 'daily' 
@@ -125,7 +126,7 @@ export const computePeriodStats = (
   // 2. One-off habits
   if (periodDoc?.oneOffHabits) {
     periodDoc.oneOffHabits.forEach(h => {
-      if (categoryId && h.categoryId !== categoryId) return;
+      if (filterCat && h.categoryId !== filterCat) return;
       const multiplicity = h.multiplicity || 1;
       const isAntiTask = !!h.isAntiTask;
       const isDoneExplicitly = periodDoc?.done?.[h.id];

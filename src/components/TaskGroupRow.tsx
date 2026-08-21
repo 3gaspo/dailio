@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { TaskGroup, Category } from '../types';
 import { ComputedHabit } from '../utils/habitLogic';
 import { ChevronRight, Folder, Check, Trash2, Edit3, GripVertical, Layers } from 'lucide-react';
@@ -42,6 +42,15 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
   const totalTasks = habits.length;
   const completedTasks = habits.filter(h => h.completed).length;
   const isAllCompleted = totalTasks > 0 && completedTasks === totalTasks;
+
+  const displayHabits = useMemo(() => {
+    if (isReorderMode) {
+      return habits;
+    }
+    const unchecked = habits.filter(h => !h.completed);
+    const checked = habits.filter(h => h.completed);
+    return [...unchecked, ...checked];
+  }, [habits, isReorderMode]);
 
   const handleSaveName = () => {
     if (editNameInput.trim() && editNameInput.trim() !== group.name) {
@@ -191,7 +200,7 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
                   ))}
                 </Reorder.Group>
               ) : (
-                habits.map(h => (
+                displayHabits.map(h => (
                   <HabitRow
                     key={h.id}
                     habit={h}
