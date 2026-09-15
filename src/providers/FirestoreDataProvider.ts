@@ -1,4 +1,4 @@
-import { getFirestore, initializeFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, deleteDoc, writeBatch } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, deleteDoc, writeBatch, deleteField } from 'firebase/firestore';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { DataProvider, Habit, PeriodDoc, Periodicity, Category, UserSettings } from '../types';
 import { getCategoryDefaultColor } from '../utils/categoryUtils';
@@ -20,7 +20,7 @@ function cleanData<T>(obj: T): T {
   const result: any = {};
   for (const [key, value] of Object.entries(obj as any)) {
     if (value !== undefined) {
-      result[key] = typeof value === 'object' && value !== null && !(value instanceof Date)
+      result[key] = typeof value === 'object' && value !== null && !(value instanceof Date) && typeof (value as any).isEqual !== 'function'
         ? cleanData(value)
         : value;
     }
@@ -74,6 +74,20 @@ export class FirestoreDataProvider implements DataProvider {
     const newDoc = doc(col);
     await setDoc(newDoc, cleanData({ ...habit }));
     return newDoc.id;
+  }
+
+  async updateHabit(uid: string, habitId: string, data: Partial<Habit>): Promise<void> {
+    const d = doc(this.db, 'users', uid, 'habits', habitId);
+    const updatePayload: any = { ...data };
+    if (data.categoryId === '' || data.categoryId === undefined || data.categoryId === null) {
+      updatePayload.categoryId = deleteField();
+    }
+    await updateDoc(d, cleanData(updatePayload));
+  }
+
+  async deleteHabit(uid: string, habitId: string): Promise<void> {
+    const d = doc(this.db, 'users', uid, 'habits', habitId);
+    await deleteDoc(d);
   }
 
   async setHabitDeletedFromPeriodKey(uid: string, habitId: string, periodKey: string): Promise<void> {

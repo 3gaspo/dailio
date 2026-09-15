@@ -10,6 +10,7 @@ import { GroupDropdown } from '../components/GroupDropdown';
 import { motion, Reorder } from 'motion/react';
 import { TaskGroupRow } from '../components/TaskGroupRow';
 import { HabitRow } from '../components/HabitRow';
+import { EditHabitModal } from '../components/EditHabitModal';
 import { cn } from '../utils/cn';
 
 interface TopLevelItem {
@@ -116,8 +117,18 @@ export const TodayPage: React.FC = () => {
   const [groupNameInput, setGroupNameInput] = useState('');
   const [targetGroupPeriodicity, setTargetGroupPeriodicity] = useState<'daily' | 'weekly'>('daily');
 
-  // Modal for Add Habit / Delete
+  // Modal for Add Habit / Delete / Edit
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingHabit, setEditingHabit] = useState<{
+    id: string;
+    name: string;
+    periodicity: 'daily' | 'weekly';
+    categoryId?: string;
+    isOneOff: boolean;
+    isAntiTask?: boolean;
+    multiplicity?: number;
+    groupId?: string;
+  } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, name: string, periodicity: 'daily' | 'weekly', isOneOff: boolean } | null>(null);
@@ -554,6 +565,256 @@ export const TodayPage: React.FC = () => {
     fetchData();
   };
 
+  const handleOpenEdit = (habit: any, periodicity: 'daily' | 'weekly') => {
+    const rawHabit = !habit.isOneOff ? habits.find(h => h.id === habit.id) : null;
+    const resolvedPeriodicity: 'daily' | 'weekly' = rawHabit?.periodicity || periodicity;
+    const groups = resolvedPeriodicity === 'daily' ? dailyTaskGroups : weeklyTaskGroups;
+    const currentGroup = groups.find(g => g.habitIds.includes(habit.id));
+
+    setEditingHabit({
+      id: habit.id,
+      name: habit.name,
+      periodicity: resolvedPeriodicity,
+      categoryId: habit.categoryId,
+      isOneOff: !!habit.isOneOff,
+      isAntiTask: !!habit.isAntiTask,
+      multiplicity: habit.multiplicity || 1,
+      groupId: currentGroup ? currentGroup.id : '',
+    });
+  };
+
+  const handleSaveEdit = async (updated: {
+    name: string;
+    periodicity: 'daily' | 'weekly';
+    categoryId: string;
+    groupId: string;
+    newGroupName: string;
+    isOneOff: boolean;
+    isAntiTask: boolean;
+    multiplicity: number;
+  }) => {
+    if (!user || !editingHabit) return;
+
+    const habitId = editingHabit.id;
+    const wasOneOff = editingHabit.isOneOff;
+    const wasPeriodicity = editingHabit.periodicity;
+    const newPeriodicity = updated.periodicity;
+    const newIsOneOff = updated.isOneOff;
+    const trimmedName = updated.name.trim();
+    const newCategoryId = updated.categoryId || undefined;
+    const newMultiplicity = updated.multiplicity;
+    const newIsAntiTask = updated.isAntiTask;
+
+    if (!wasOneOff && !newIsOneOff) {
+      // Habit stays recurring
+      await data.updateHabit(user.uid, habitId, {
+        name: trimmedName,
+        periodicity: newPeriodicity,
+        categoryId: newCategoryId || '',
+        multiplicity: newMultiplicity,
+        isAntiTask: newIsAntiTask,
+      });
+
+      if (wasPeriodicity !== newPeriodicity) {
+        // Periodicity changed (e.g. daily -> weekly)
+        const oldGroups = wasPeriodicity === 'daily' ? dailyTaskGroups : weeklyTaskGroups;
+        const updatedOldGroups = oldGroups.map(g => ({
+          ...g,
+          habitIds: g.habitIds.filter(id => id !== habitId)
+        })).filter(g => g.habitIds.length > 0);
+
+        const oldDoc = wasPeriodicity === 'daily' ? dailyDoc : weeklyDoc;
+        const updatedOldOrder = (oldDoc?.habitOrder || []).filter(id => id !== habitId);
+        await updateTaskGroupsAndOrderAndSettings(wasPeriodicity, updatedOldGroups, updatedOldOrder);
+
+        const targetGroups = newPeriodicity === 'daily' ? dailyTaskGroups : weeklyTaskGroups;
+        const targetDoc = newPeriodicity === 'daily' ? dailyDoc : weeklyDoc;
+        let targetOrder = targetDoc?.habitOrder ? [...targetDoc.habitOrder] : [];
+
+        if (updated.groupId === 'new') {
+          const createdGroup: TaskGroup = {
+            id: 'group_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+            name: updated.newGroupName.trim() || 'New Group',
+            habitIds: [habitId],
+            periodicity: newPeriodicity
+          };
+          const updatedTargetGroups = [createdGroup, ...targetGroups];
+          const newTargetOrder = [createdGroup.id, ...targetOrder.filter(id => id !== habitId)];
+          await updateTaskGroupsAndOrderAndSettings(newPeriodicity, updatedTargetGroups, newTargetOrder);
+        } else if (updated.groupId) {
+          const updatedTargetGroups = targetGroups.map(g => 
+            g.id === updated.groupId ? { ...g, habitIds: [...g.habitIds.filter(id => id !== habitId), habitId] } : g
+          );
+          const newTargetOrder = targetOrder.filter(id => id !== habitId);
+          await updateTaskGroupsAndOrderAndSettings(newPeriodicity, updatedTargetGroups, newTargetOrder);
+        } else {
+          if (!targetOrder.includes(habitId)) {
+            targetOrder = [habitId, ...targetOrder];
+          }
+          await updateTaskGroupsAndOrderAndSettings(newPeriodicity, targetGroups, targetOrder);
+        }
+      } else {
+        // Same periodicity - check group assignment
+        const currentGroups = newPeriodicity === 'daily' ? dailyTaskGroups : weeklyTaskGroups;
+        const currentDoc = newPeriodicity === 'daily' ? dailyDoc : weeklyDoc;
+        let currentOrder = currentDoc?.habitOrder ? [...currentDoc.habitOrder] : [];
+
+        if (updated.groupId === 'new') {
+          const cleanedGroups = currentGroups.map(g => ({
+            ...g,
+            habitIds: g.habitIds.filter(id => id !== habitId)
+          })).filter(g => g.habitIds.length > 0);
+
+          const createdGroup: TaskGroup = {
+            id: 'group_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+            name: updated.newGroupName.trim() || 'New Group',
+            habitIds: [habitId],
+            periodicity: newPeriodicity
+          };
+          const updatedGroups = [createdGroup, ...cleanedGroups];
+          const newOrder = [createdGroup.id, ...currentOrder.filter(id => id !== habitId)];
+          await updateTaskGroupsAndOrderAndSettings(newPeriodicity, updatedGroups, newOrder);
+        } else if (updated.groupId) {
+          const updatedGroups = currentGroups.map(g => {
+            if (g.id === updated.groupId) {
+              return { ...g, habitIds: [...g.habitIds.filter(id => id !== habitId), habitId] };
+            }
+            return { ...g, habitIds: g.habitIds.filter(id => id !== habitId) };
+          }).filter(g => g.habitIds.length > 0);
+
+          const newOrder = currentOrder.filter(id => id !== habitId);
+          await updateTaskGroupsAndOrderAndSettings(newPeriodicity, updatedGroups, newOrder);
+        } else {
+          const updatedGroups = currentGroups.map(g => ({
+            ...g,
+            habitIds: g.habitIds.filter(id => id !== habitId)
+          })).filter(g => g.habitIds.length > 0);
+
+          if (!currentOrder.includes(habitId)) {
+            currentOrder = [habitId, ...currentOrder];
+          }
+          await updateTaskGroupsAndOrderAndSettings(newPeriodicity, updatedGroups, currentOrder);
+        }
+      }
+    } else if (!wasOneOff && newIsOneOff) {
+      // Converted from recurring to one-off
+      const targetKey = newPeriodicity === 'daily' ? dailyKey : weeklyKey;
+      const targetDoc = newPeriodicity === 'daily' ? dailyDoc : weeklyDoc;
+
+      const newOneOff = {
+        id: habitId,
+        name: trimmedName,
+        categoryId: newCategoryId,
+        multiplicity: newMultiplicity > 1 ? newMultiplicity : undefined,
+        isAntiTask: newIsAntiTask ? true : undefined,
+      };
+
+      await data.deleteHabit(user.uid, habitId);
+
+      const existingOneOffs = (targetDoc?.oneOffHabits || []).filter(h => h.id !== habitId);
+      await data.updatePeriodDoc(user.uid, newPeriodicity, targetKey, {
+        oneOffHabits: [newOneOff, ...existingOneOffs]
+      });
+
+      if (wasPeriodicity !== newPeriodicity) {
+        const oldGroups = wasPeriodicity === 'daily' ? dailyTaskGroups : weeklyTaskGroups;
+        const updatedOldGroups = oldGroups.map(g => ({
+          ...g,
+          habitIds: g.habitIds.filter(id => id !== habitId)
+        })).filter(g => g.habitIds.length > 0);
+        const oldDoc = wasPeriodicity === 'daily' ? dailyDoc : weeklyDoc;
+        const updatedOldOrder = (oldDoc?.habitOrder || []).filter(id => id !== habitId);
+        await updateTaskGroupsAndOrderAndSettings(wasPeriodicity, updatedOldGroups, updatedOldOrder);
+      }
+    } else if (wasOneOff && newIsOneOff) {
+      // One-off stays one-off
+      const updatedOneOff = {
+        id: habitId,
+        name: trimmedName,
+        categoryId: newCategoryId,
+        multiplicity: newMultiplicity > 1 ? newMultiplicity : undefined,
+        isAntiTask: newIsAntiTask ? true : undefined,
+      };
+
+      if (wasPeriodicity === newPeriodicity) {
+        const key = newPeriodicity === 'daily' ? dailyKey : weeklyKey;
+        const doc = newPeriodicity === 'daily' ? dailyDoc : weeklyDoc;
+        const updatedOneOffs = (doc?.oneOffHabits || []).map(h => h.id === habitId ? updatedOneOff : h);
+        await data.updatePeriodDoc(user.uid, newPeriodicity, key, {
+          oneOffHabits: updatedOneOffs
+        });
+      } else {
+        const oldKey = wasPeriodicity === 'daily' ? dailyKey : weeklyKey;
+        const oldDoc = wasPeriodicity === 'daily' ? dailyDoc : weeklyDoc;
+        const targetKey = newPeriodicity === 'daily' ? dailyKey : weeklyKey;
+        const targetDoc = newPeriodicity === 'daily' ? dailyDoc : weeklyDoc;
+
+        const filteredOld = (oldDoc?.oneOffHabits || []).filter(h => h.id !== habitId);
+        await data.updatePeriodDoc(user.uid, wasPeriodicity, oldKey, {
+          oneOffHabits: filteredOld
+        });
+
+        const existingTarget = (targetDoc?.oneOffHabits || []).filter(h => h.id !== habitId);
+        await data.updatePeriodDoc(user.uid, newPeriodicity, targetKey, {
+          oneOffHabits: [updatedOneOff, ...existingTarget]
+        });
+
+        const oldGroups = wasPeriodicity === 'daily' ? dailyTaskGroups : weeklyTaskGroups;
+        const updatedOldGroups = oldGroups.map(g => ({
+          ...g,
+          habitIds: g.habitIds.filter(id => id !== habitId)
+        })).filter(g => g.habitIds.length > 0);
+        const updatedOldOrder = (oldDoc?.habitOrder || []).filter(id => id !== habitId);
+        await updateTaskGroupsAndOrderAndSettings(wasPeriodicity, updatedOldGroups, updatedOldOrder);
+      }
+    } else if (wasOneOff && !newIsOneOff) {
+      // Converted from one-off to recurring
+      const oldKey = wasPeriodicity === 'daily' ? dailyKey : weeklyKey;
+      const oldDoc = wasPeriodicity === 'daily' ? dailyDoc : weeklyDoc;
+
+      const filteredOneOffs = (oldDoc?.oneOffHabits || []).filter(h => h.id !== habitId);
+      await data.updatePeriodDoc(user.uid, wasPeriodicity, oldKey, {
+        oneOffHabits: filteredOneOffs
+      });
+
+      const newHabitId = await data.addHabit(user.uid, {
+        name: trimmedName,
+        periodicity: newPeriodicity,
+        createdAt: new Date(),
+        deletedFromPeriodKey: null,
+        categoryId: newCategoryId,
+        multiplicity: newMultiplicity > 1 ? newMultiplicity : undefined,
+        isAntiTask: newIsAntiTask ? true : undefined,
+      });
+
+      if (oldDoc?.done?.[habitId] !== undefined) {
+        const newDone = { ...(oldDoc.done || {}) };
+        newDone[newHabitId] = newDone[habitId];
+        delete newDone[habitId];
+
+        const newSubDone = { ...(oldDoc.subDone || {}) };
+        if (newSubDone[habitId] !== undefined) {
+          newSubDone[newHabitId] = newSubDone[habitId];
+          delete newSubDone[habitId];
+        }
+
+        await data.updatePeriodDoc(user.uid, wasPeriodicity, oldKey, {
+          done: newDone,
+          subDone: newSubDone
+        });
+      }
+
+      const targetGroups = newPeriodicity === 'daily' ? dailyTaskGroups : weeklyTaskGroups;
+      const targetDoc = newPeriodicity === 'daily' ? dailyDoc : weeklyDoc;
+      let targetOrder = targetDoc?.habitOrder ? [...targetDoc.habitOrder] : [];
+      targetOrder = [newHabitId, ...targetOrder.filter(id => id !== habitId && id !== newHabitId)];
+      await updateTaskGroupsAndOrderAndSettings(newPeriodicity, targetGroups, targetOrder);
+    }
+
+    setEditingHabit(null);
+    await fetchData();
+  };
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newName.trim() || isSubmitting) return;
@@ -794,6 +1055,7 @@ export const TodayPage: React.FC = () => {
                   onToggleHabit={(id, isOneOff, current) => handleToggle(id, 'daily', current)}
                   onSubToggleHabit={(id, isOneOff, idx) => handleSubToggle(id, 'daily', idx)}
                   onDeleteHabit={(id, name, isOneOff) => handleDelete(id, name, 'daily', isOneOff)}
+                  onEditHabit={(h) => handleOpenEdit(h, 'daily')}
                   onUngroup={() => handleUngroup(item.group!.id, 'daily')}
                   onRenameGroup={(newName) => handleRenameGroup(item.group!.id, newName, 'daily')}
                   onReorderHabitsInGroup={(newHabitOrder) => handleReorderHabitsInGroup(item.group!.id, newHabitOrder, 'daily')}
@@ -809,6 +1071,7 @@ export const TodayPage: React.FC = () => {
                   onToggle={() => handleToggle(item.habit!.id, 'daily', item.habit!.completed)}
                   onSubToggle={(idx) => handleSubToggle(item.habit!.id, 'daily', idx)}
                   onDelete={() => handleDelete(item.habit!.id, item.habit!.name, 'daily', item.habit!.isOneOff)}
+                  onEdit={() => handleOpenEdit(item.habit!, 'daily')}
                 />
               ) : null}
             </Reorder.Item>
@@ -922,6 +1185,7 @@ export const TodayPage: React.FC = () => {
                   onToggleHabit={(id, isOneOff, current) => handleToggle(id, 'weekly', current)}
                   onSubToggleHabit={(id, isOneOff, idx) => handleSubToggle(id, 'weekly', idx)}
                   onDeleteHabit={(id, name, isOneOff) => handleDelete(id, name, 'weekly', isOneOff)}
+                  onEditHabit={(h) => handleOpenEdit(h, 'weekly')}
                   onUngroup={() => handleUngroup(item.group!.id, 'weekly')}
                   onRenameGroup={(newName) => handleRenameGroup(item.group!.id, newName, 'weekly')}
                   onReorderHabitsInGroup={(newHabitOrder) => handleReorderHabitsInGroup(item.group!.id, newHabitOrder, 'weekly')}
@@ -937,6 +1201,7 @@ export const TodayPage: React.FC = () => {
                   onToggle={() => handleToggle(item.habit!.id, 'weekly', item.habit!.completed)}
                   onSubToggle={(idx) => handleSubToggle(item.habit!.id, 'weekly', idx)}
                   onDelete={() => handleDelete(item.habit!.id, item.habit!.name, 'weekly', item.habit!.isOneOff)}
+                  onEdit={() => handleOpenEdit(item.habit!, 'weekly')}
                 />
               ) : null}
             </Reorder.Item>
@@ -1158,6 +1423,18 @@ export const TodayPage: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Edit Habit Modal */}
+      <EditHabitModal
+        isOpen={!!editingHabit}
+        onClose={() => setEditingHabit(null)}
+        habit={editingHabit}
+        categories={categories}
+        dailyGroups={dailyTaskGroups}
+        weeklyGroups={weeklyTaskGroups}
+        onSave={handleSaveEdit}
+        showGroupOption={true}
+      />
     </div>
   );
 };

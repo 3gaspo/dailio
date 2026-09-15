@@ -1,6 +1,6 @@
 import React from 'react';
 import { Category } from '../types';
-import { Check, GripVertical, Trash2 } from 'lucide-react';
+import { Check, GripVertical, Trash2, Pencil } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { getCategoryColor, getContrastColor } from '../utils/categoryUtils';
 
@@ -14,6 +14,7 @@ export interface HabitRowProps {
   onToggle: () => void;
   onSubToggle: (idx: number) => void;
   onDelete: () => void;
+  onEdit?: () => void;
 }
 
 export const HabitRow: React.FC<HabitRowProps> = ({
@@ -25,7 +26,8 @@ export const HabitRow: React.FC<HabitRowProps> = ({
   onSelectToggle,
   onToggle,
   onSubToggle,
-  onDelete
+  onDelete,
+  onEdit
 }) => {
   const category = categories.find(c => c.id === habit.categoryId);
   const catColor = category ? getCategoryColor(category) : '#6B7280';
@@ -113,16 +115,34 @@ export const HabitRow: React.FC<HabitRowProps> = ({
         </div>
 
         {!isReorderMode && !isGroupingMode && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            className="p-2 text-black/10 dark:text-white/10 hover:text-red-500 transition-colors shrink-0"
-          >
-            <Trash2 size={18} />
-          </button>
+          <div className="flex items-center shrink-0">
+            {onEdit && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit();
+                }}
+                className="p-2 text-black/20 dark:text-white/20 hover:text-black dark:hover:text-white transition-colors"
+                title="Edit task"
+                aria-label="Edit task"
+              >
+                <Pencil size={16} />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="p-2 text-black/20 dark:text-white/20 hover:text-red-500 transition-colors"
+              title="Delete task"
+              aria-label="Delete task"
+            >
+              <Trash2 size={17} />
+            </button>
+          </div>
         )}
       </div>
 

@@ -16,6 +16,7 @@ interface TaskGroupRowProps {
   onToggleHabit: (id: string, isOneOff: boolean, completed: boolean) => void;
   onSubToggleHabit: (id: string, isOneOff: boolean, idx: number) => void;
   onDeleteHabit: (id: string, name: string, isOneOff: boolean) => void;
+  onEditHabit?: (habit: any) => void;
   onUngroup: () => void;
   onRenameGroup: (newName: string) => void;
   onReorderHabitsInGroup: (newHabitOrder: string[]) => void;
@@ -31,6 +32,7 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
   onToggleHabit,
   onSubToggleHabit,
   onDeleteHabit,
+  onEditHabit,
   onUngroup,
   onRenameGroup,
   onReorderHabitsInGroup
@@ -195,6 +197,7 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
                         onToggle={() => onToggleHabit(h.id, h.isOneOff, h.completed)}
                         onSubToggle={(idx) => onSubToggleHabit(h.id, h.isOneOff, idx)}
                         onDelete={() => onDeleteHabit(h.id, h.name, h.isOneOff)}
+                        onEdit={onEditHabit ? () => onEditHabit(h) : undefined}
                       />
                     </Reorder.Item>
                   ))}
@@ -210,6 +213,7 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
                     onToggle={() => onToggleHabit(h.id, h.isOneOff, h.completed)}
                     onSubToggle={(idx) => onSubToggleHabit(h.id, h.isOneOff, idx)}
                     onDelete={() => onDeleteHabit(h.id, h.name, h.isOneOff)}
+                    onEdit={onEditHabit ? () => onEditHabit(h) : undefined}
                   />
                 ))
               )}

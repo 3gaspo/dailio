@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from '../providers/AppProvider';
 import { getDailyKey, getWeeklyKey } from '../utils/dateUtils';
 import { computePeriodStats } from '../utils/habitLogic';
-import { Habit, PeriodDoc } from '../types';
-import { ChevronLeft, ChevronRight, Plus, Trash2, Check } from 'lucide-react';
+import { Habit, PeriodDoc, Category } from '../types';
+import { ChevronLeft, ChevronRight, Plus, Trash2, Check, Pencil } from 'lucide-react';
 import { Modal } from '../components/Modal';
+import { EditHabitModal } from '../components/EditHabitModal';
 import { motion } from 'motion/react';
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, addMonths, subMonths, isSameMonth, isSameDay, startOfYear, endOfYear, eachWeekOfInterval, getISOWeek, getYear, isBefore, isAfter, startOfDay, isSameWeek } from 'date-fns';
 
@@ -15,11 +16,13 @@ export const CalendarPage: React.FC = () => {
   });
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [habits, setHabits] = useState<Habit[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [periodDocs, setPeriodDocs] = useState<Record<string, PeriodDoc>>({});
   const [loading, setLoading] = useState(true);
   
   const [selectedPeriod, setSelectedPeriod] = useState<{ key: string; date: Date } | null>(null);
   const [newOneOffName, setNewOneOffName] = useState('');
+  const [editingHabit, setEditingHabit] = useState<any | null>(null);
 
   useEffect(() => {
     localStorage.setItem('dailio_calendar_view', view);
@@ -32,6 +35,8 @@ export const CalendarPage: React.FC = () => {
     }
     const h = await data.getHabits(user.uid);
     setHabits(h);
+    const cats = await data.getCategories(user.uid);
+    setCategories(cats);
     
     const docs: Record<string, PeriodDoc> = {};
     if (view === 'daily') {
@@ -116,6 +121,104 @@ export const CalendarPage: React.FC = () => {
     delete newSubDone[id];
     await data.updatePeriodDoc(user.uid, view, key, { oneOffHabits: newOneOffs, done: newDone, subDone: newSubDone });
     fetchData();
+  };
+
+  const handleOpenEdit = (h: any) => {
+    const rawHabit = !h.isOneOff ? habits.find(habit => habit.id === h.id) : null;
+    const resolvedPeriodicity = rawHabit?.periodicity || view;
+    setEditingHabit({
+      id: h.id,
+      name: h.name,
+      periodicity: resolvedPeriodicity,
+      categoryId: h.categoryId,
+      isOneOff: !!h.isOneOff,
+      isAntiTask: !!h.isAntiTask,
+      multiplicity: h.multiplicity || 1,
+    });
+  };
+
+  const handleSaveEdit = async (updated: {
+    name: string;
+    periodicity: 'daily' | 'weekly';
+    categoryId: string;
+    isOneOff: boolean;
+    isAntiTask: boolean;
+    multiplicity: number;
+  }) => {
+    if (!user || !editingHabit) return;
+
+    const habitId = editingHabit.id;
+    const wasOneOff = editingHabit.isOneOff;
+    const newPeriodicity = updated.periodicity;
+    const newIsOneOff = updated.isOneOff;
+    const trimmedName = updated.name.trim();
+    const newCategoryId = updated.categoryId || undefined;
+    const newMultiplicity = updated.multiplicity;
+    const newIsAntiTask = updated.isAntiTask;
+
+    if (!wasOneOff && !newIsOneOff) {
+      await data.updateHabit(user.uid, habitId, {
+        name: trimmedName,
+        periodicity: newPeriodicity,
+        categoryId: newCategoryId || '',
+        multiplicity: newMultiplicity,
+        isAntiTask: newIsAntiTask,
+      });
+    } else if (!wasOneOff && newIsOneOff) {
+      if (selectedPeriod) {
+        const key = selectedPeriod.key;
+        const currentDoc = periodDocs[key];
+        const newOneOff = {
+          id: habitId,
+          name: trimmedName,
+          categoryId: newCategoryId,
+          multiplicity: newMultiplicity > 1 ? newMultiplicity : undefined,
+          isAntiTask: newIsAntiTask ? true : undefined,
+        };
+        await data.deleteHabit(user.uid, habitId);
+        const existingOneOffs = (currentDoc?.oneOffHabits || []).filter(h => h.id !== habitId);
+        await data.updatePeriodDoc(user.uid, view, key, {
+          oneOffHabits: [newOneOff, ...existingOneOffs]
+        });
+      }
+    } else if (wasOneOff && newIsOneOff) {
+      if (selectedPeriod) {
+        const key = selectedPeriod.key;
+        const currentDoc = periodDocs[key];
+        const updatedOneOff = {
+          id: habitId,
+          name: trimmedName,
+          categoryId: newCategoryId,
+          multiplicity: newMultiplicity > 1 ? newMultiplicity : undefined,
+          isAntiTask: newIsAntiTask ? true : undefined,
+        };
+        const updatedOneOffs = (currentDoc?.oneOffHabits || []).map(h => h.id === habitId ? updatedOneOff : h);
+        await data.updatePeriodDoc(user.uid, view, key, {
+          oneOffHabits: updatedOneOffs
+        });
+      }
+    } else if (wasOneOff && !newIsOneOff) {
+      if (selectedPeriod) {
+        const key = selectedPeriod.key;
+        const currentDoc = periodDocs[key];
+        const filteredOneOffs = (currentDoc?.oneOffHabits || []).filter(h => h.id !== habitId);
+        await data.updatePeriodDoc(user.uid, view, key, {
+          oneOffHabits: filteredOneOffs
+        });
+        await data.addHabit(user.uid, {
+          name: trimmedName,
+          periodicity: newPeriodicity,
+          createdAt: new Date(),
+          deletedFromPeriodKey: null,
+          categoryId: newCategoryId,
+          multiplicity: newMultiplicity > 1 ? newMultiplicity : undefined,
+          isAntiTask: newIsAntiTask ? true : undefined,
+        });
+      }
+    }
+
+    setEditingHabit(null);
+    await fetchData();
   };
 
   const handleToggleAbsent = async () => {
@@ -335,11 +438,20 @@ export const CalendarPage: React.FC = () => {
                     </button>
                     <span className={cn("flex-1 ml-3 font-medium dark:text-white", (h.completed || stats.isAbsent) && "text-black/30 dark:text-white/30 line-through")}>{h.name}</span>
                     <button
+                      onClick={() => handleOpenEdit(h)}
+                      disabled={stats.isAbsent}
+                      className={cn("p-2 text-black/20 dark:text-white/20 hover:text-black dark:hover:text-white transition-colors", stats.isAbsent && "opacity-20 cursor-not-allowed")}
+                      title="Edit task"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
                       onClick={() => h.isOneOff ? handleDeleteOneOff(h.id) : handleSkip(h.id)}
                       disabled={stats.isAbsent}
-                      className={cn("p-2 text-black/10 dark:text-white/10 hover:text-red-500", stats.isAbsent && "opacity-20 cursor-not-allowed")}
+                      className={cn("p-2 text-black/20 dark:text-white/20 hover:text-red-500 transition-colors", stats.isAbsent && "opacity-20 cursor-not-allowed")}
+                      title={h.isOneOff ? "Delete task" : "Skip task"}
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={17} />
                     </button>
                   </div>
                 ))}
@@ -371,6 +483,15 @@ export const CalendarPage: React.FC = () => {
           );
         })()}
       </Modal>
+
+      <EditHabitModal
+        isOpen={!!editingHabit}
+        onClose={() => setEditingHabit(null)}
+        habit={editingHabit}
+        categories={categories}
+        onSave={handleSaveEdit as any}
+        showGroupOption={false}
+      />
     </motion.div>
   );
 };

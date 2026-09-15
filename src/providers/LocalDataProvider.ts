@@ -35,6 +35,25 @@ export class LocalDataProvider implements DataProvider {
     return newHabit.id;
   }
 
+  async updateHabit(uid: string, habitId: string, data: Partial<Habit>): Promise<void> {
+    const habits = await this.getHabits(uid);
+    const index = habits.findIndex(h => h.id === habitId);
+    if (index !== -1) {
+      const updated = { ...habits[index], ...data };
+      if (data.categoryId === '' || data.categoryId === undefined || data.categoryId === null) {
+        delete updated.categoryId;
+      }
+      habits[index] = updated;
+      localStorage.setItem(this.getStorageKey(uid, 'habits'), JSON.stringify(habits));
+    }
+  }
+
+  async deleteHabit(uid: string, habitId: string): Promise<void> {
+    const habits = await this.getHabits(uid);
+    const filtered = habits.filter(h => h.id !== habitId);
+    localStorage.setItem(this.getStorageKey(uid, 'habits'), JSON.stringify(filtered));
+  }
+
   async setHabitDeletedFromPeriodKey(uid: string, habitId: string, periodKey: string): Promise<void> {
     const habits = await this.getHabits(uid);
     const habit = habits.find(h => h.id === habitId);

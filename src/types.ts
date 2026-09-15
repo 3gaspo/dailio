@@ -75,6 +75,8 @@ export interface DataProvider {
   // Habits
   getHabits: (uid: string) => Promise<Habit[]>;
   addHabit: (uid: string, habit: Omit<Habit, 'id'>) => Promise<string>;
+  updateHabit: (uid: string, habitId: string, data: Partial<Habit>) => Promise<void>;
+  deleteHabit: (uid: string, habitId: string) => Promise<void>;
   setHabitDeletedFromPeriodKey: (uid: string, habitId: string, periodKey: string) => Promise<void>;
   updateHabitOrder: (uid: string, habitId: string, order: number) => Promise<void>;
   
