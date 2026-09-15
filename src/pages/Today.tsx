@@ -367,6 +367,8 @@ export const TodayPage: React.FC = () => {
       newDone[h.id] = targetCompleted;
       if (h.multiplicity > 1) {
         newSubDone[h.id] = targetCompleted ? h.multiplicity : 0;
+      } else {
+        newSubDone[h.id] = targetCompleted ? 1 : 0;
       }
     });
 
@@ -429,10 +431,13 @@ export const TodayPage: React.FC = () => {
     const habit = stats.habits.find(h => h.id === id);
     if (habit && habit.multiplicity > 1) {
       newSubDone[id] = !current ? habit.multiplicity : 0;
+    } else {
+      // For tasks without multiplicity: checking sets count to 1, unchecking resets to 0
+      newSubDone[id] = !current ? 1 : 0;
     }
 
     const updatedHabits = [...stats.habits].map(h => 
-      h.id === id ? { ...h, completed: !current, subDone: !current ? h.multiplicity : 0 } : h
+      h.id === id ? { ...h, completed: !current, subDone: !current ? (h.multiplicity > 1 ? h.multiplicity : 1) : 0 } : h
     );
 
     if (periodicity === 'daily') setLocalDailyHabits(updatedHabits);
@@ -488,6 +493,77 @@ export const TodayPage: React.FC = () => {
       await data.updatePeriodDoc(user.uid, periodicity, key, { done: newDone, subDone: newSubDone });
     } catch (error) {
       console.error("Failed to toggle sub-habit:", error);
+      fetchData();
+    }
+  };
+
+  const handleIncrementWeeklyCount = async (id: string) => {
+    if (!user || isReorderMode) return;
+    const key = weeklyKey;
+    const doc = weeklyDoc;
+    const stats = weeklyStats;
+    
+    const habit = stats.habits.find(h => h.id === id);
+    if (!habit || !habit.completed || habit.multiplicity > 1) return;
+
+    const currentCount = habit.subDone > 0 ? habit.subDone : 1;
+    const newCount = currentCount + 1;
+
+    const newDone = { ...(doc?.done || {}), [id]: true };
+    const newSubDone = { ...(doc?.subDone || {}), [id]: newCount };
+
+    const updatedHabits = [...stats.habits].map(h => 
+      h.id === id ? { ...h, completed: true, subDone: newCount } : h
+    );
+
+    setLocalWeeklyHabits(updatedHabits);
+
+    const updateState = (prev: PeriodDoc | null): PeriodDoc => {
+      const base = prev || { done: {}, skippedHabitIds: [], oneOffHabits: [], updatedAt: new Date() };
+      return { ...base, done: newDone, subDone: newSubDone };
+    };
+    setWeeklyDoc(updateState);
+
+    try {
+      await data.updatePeriodDoc(user.uid, 'weekly', key, { done: newDone, subDone: newSubDone });
+    } catch (error) {
+      console.error("Failed to increment weekly habit count:", error);
+      fetchData();
+    }
+  };
+
+  const handleDecrementWeeklyCount = async (id: string) => {
+    if (!user || isReorderMode) return;
+    const key = weeklyKey;
+    const doc = weeklyDoc;
+    const stats = weeklyStats;
+    
+    const habit = stats.habits.find(h => h.id === id);
+    if (!habit || !habit.completed || habit.multiplicity > 1) return;
+
+    const currentCount = habit.subDone > 0 ? habit.subDone : 1;
+    if (currentCount <= 1) return;
+    const newCount = currentCount - 1;
+
+    const newDone = { ...(doc?.done || {}), [id]: true };
+    const newSubDone = { ...(doc?.subDone || {}), [id]: newCount };
+
+    const updatedHabits = [...stats.habits].map(h => 
+      h.id === id ? { ...h, completed: true, subDone: newCount } : h
+    );
+
+    setLocalWeeklyHabits(updatedHabits);
+
+    const updateState = (prev: PeriodDoc | null): PeriodDoc => {
+      const base = prev || { done: {}, skippedHabitIds: [], oneOffHabits: [], updatedAt: new Date() };
+      return { ...base, done: newDone, subDone: newSubDone };
+    };
+    setWeeklyDoc(updateState);
+
+    try {
+      await data.updatePeriodDoc(user.uid, 'weekly', key, { done: newDone, subDone: newSubDone });
+    } catch (error) {
+      console.error("Failed to decrement weekly habit count:", error);
       fetchData();
     }
   };
@@ -955,9 +1031,16 @@ export const TodayPage: React.FC = () => {
       {/* Daily Habits Section */}
       <section className="mb-12">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black/30 dark:text-white/30">
-            Daily habits
-          </h2>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black/30 dark:text-white/30">
+              Daily habits
+            </h2>
+            {dailyStats.to_do > 0 && (
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-black/60 dark:text-white/60">
+                {dailyStats.done}/{dailyStats.to_do} pts
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             {/* Grouping Mode Toggle */}
             <button
@@ -1087,9 +1170,16 @@ export const TodayPage: React.FC = () => {
       {/* Weekly Habits Section */}
       <section className="mb-12">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black/30 dark:text-white/30">
-            Weekly habits
-          </h2>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black/30 dark:text-white/30">
+              Weekly habits
+            </h2>
+            {weeklyStats.to_do > 0 && (
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-black/60 dark:text-white/60">
+                {weeklyStats.done}/{weeklyStats.to_do} pts
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -1189,6 +1279,8 @@ export const TodayPage: React.FC = () => {
                   onUngroup={() => handleUngroup(item.group!.id, 'weekly')}
                   onRenameGroup={(newName) => handleRenameGroup(item.group!.id, newName, 'weekly')}
                   onReorderHabitsInGroup={(newHabitOrder) => handleReorderHabitsInGroup(item.group!.id, newHabitOrder, 'weekly')}
+                  onIncrementHabitCount={(id) => handleIncrementWeeklyCount(id)}
+                  onDecrementHabitCount={(id) => handleDecrementWeeklyCount(id)}
                 />
               ) : item.habit ? (
                 <HabitRow
@@ -1202,6 +1294,9 @@ export const TodayPage: React.FC = () => {
                   onSubToggle={(idx) => handleSubToggle(item.habit!.id, 'weekly', idx)}
                   onDelete={() => handleDelete(item.habit!.id, item.habit!.name, 'weekly', item.habit!.isOneOff)}
                   onEdit={() => handleOpenEdit(item.habit!, 'weekly')}
+                  isWeekly={true}
+                  onIncrementCount={() => handleIncrementWeeklyCount(item.habit!.id)}
+                  onDecrementCount={() => handleDecrementWeeklyCount(item.habit!.id)}
                 />
               ) : null}
             </Reorder.Item>

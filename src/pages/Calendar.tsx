@@ -78,7 +78,65 @@ export const CalendarPage: React.FC = () => {
     const habit = stats.habits.find(h => h.id === id);
     if (habit && habit.multiplicity > 1) {
       newSubDone[id] = !completed ? habit.multiplicity : 0;
+    } else {
+      newSubDone[id] = !completed ? 1 : 0;
     }
+
+    await data.updatePeriodDoc(user.uid, view, key, { done: newDone, subDone: newSubDone });
+    fetchData();
+  };
+
+  const handleIncrementWeekly = async (id: string) => {
+    if (!user || !selectedPeriod) return;
+    const { key } = selectedPeriod;
+    const doc = periodDocs[key];
+    const stats = computePeriodStats(key, view, habits, doc || null);
+    const habit = stats.habits.find(h => h.id === id);
+    if (!habit || !habit.completed || habit.multiplicity > 1) return;
+
+    const currentCount = habit.subDone > 0 ? habit.subDone : 1;
+    const newCount = currentCount + 1;
+
+    const newDone = { ...(doc?.done || {}), [id]: true };
+    const newSubDone = { ...(doc?.subDone || {}), [id]: newCount };
+
+    await data.updatePeriodDoc(user.uid, view, key, { done: newDone, subDone: newSubDone });
+    fetchData();
+  };
+
+  const handleSubToggle = async (id: string, subIndex: number) => {
+    if (!user || !selectedPeriod) return;
+    const { key } = selectedPeriod;
+    const doc = periodDocs[key];
+    const stats = computePeriodStats(key, view, habits, doc || null);
+    const habit = stats.habits.find(h => h.id === id);
+    if (!habit || habit.multiplicity <= 1) return;
+
+    const currentSubDone = habit.subDone;
+    let newCount = subIndex < currentSubDone ? subIndex : subIndex + 1;
+    const isNowDone = habit.isAntiTask ? (newCount < habit.multiplicity) : (newCount >= habit.multiplicity);
+
+    const newDone = { ...(doc?.done || {}), [id]: isNowDone };
+    const newSubDone = { ...(doc?.subDone || {}), [id]: newCount };
+
+    await data.updatePeriodDoc(user.uid, view, key, { done: newDone, subDone: newSubDone });
+    fetchData();
+  };
+
+  const handleDecrementWeekly = async (id: string) => {
+    if (!user || !selectedPeriod) return;
+    const { key } = selectedPeriod;
+    const doc = periodDocs[key];
+    const stats = computePeriodStats(key, view, habits, doc || null);
+    const habit = stats.habits.find(h => h.id === id);
+    if (!habit || !habit.completed || habit.multiplicity > 1) return;
+
+    const currentCount = habit.subDone > 0 ? habit.subDone : 1;
+    if (currentCount <= 1) return;
+    const newCount = currentCount - 1;
+
+    const newDone = { ...(doc?.done || {}), [id]: true };
+    const newSubDone = { ...(doc?.subDone || {}), [id]: newCount };
 
     await data.updatePeriodDoc(user.uid, view, key, { done: newDone, subDone: newSubDone });
     fetchData();
@@ -300,7 +358,7 @@ export const CalendarPage: React.FC = () => {
           const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
           const isCurrentWeek = isSameWeek(w, new Date(), { weekStartsOn: 1 });
           const isPastWeek = isBefore(w, currentWeekStart);
-          const isDone = stats.to_do > 0 && stats.done === stats.to_do;
+          const isDone = stats.to_do > 0 && stats.done >= stats.to_do;
           const isIncomplete = stats.to_do > 0 && stats.done < stats.to_do;
           const objectiveMet = stats.to_do > 0 && stats.ratio >= settings.weeklyObjective;
           const isAbsent = stats.isAbsent;
@@ -422,37 +480,95 @@ export const CalendarPage: React.FC = () => {
 
               <div className="space-y-3">
                 {stats.habits.map(h => (
-                  <div key={h.id} className="flex items-center">
-                    <button
-                      onClick={() => handleToggle(h.id, h.completed)}
-                      disabled={stats.isAbsent}
-                      className={cn(
-                        "w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all",
-                        h.completed 
-                          ? "bg-black dark:bg-white border-black dark:border-white text-white dark:text-black" 
-                          : "border-black/10 dark:border-white/10 text-transparent",
-                        stats.isAbsent && "opacity-20 cursor-not-allowed"
+                  <div key={h.id} className="flex flex-col bg-black/5 dark:bg-white/5 p-3 rounded-2xl">
+                    <div className="flex items-center">
+                      <button
+                        onClick={() => handleToggle(h.id, h.completed)}
+                        disabled={stats.isAbsent}
+                        className={cn(
+                          "w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all",
+                          h.completed 
+                            ? "bg-black dark:bg-white border-black dark:border-white text-white dark:text-black" 
+                            : "border-black/10 dark:border-white/10 text-transparent",
+                          stats.isAbsent && "opacity-20 cursor-not-allowed"
+                        )}
+                      >
+                        <Check size={14} strokeWidth={4} />
+                      </button>
+                      <span className={cn("flex-1 ml-3 font-medium dark:text-white truncate", (h.completed || stats.isAbsent) && "text-black/30 dark:text-white/30 line-through")}>{h.name}</span>
+                      
+                      {view === 'weekly' && h.completed && (h.multiplicity <= 1 || !h.multiplicity) && !h.isAntiTask && (
+                        <div className="flex items-center gap-1 shrink-0 mr-1">
+                          {h.subDone > 1 && (
+                            <div className="flex items-center gap-0.5">
+                              <button
+                                onClick={() => handleDecrementWeekly(h.id)}
+                                disabled={stats.isAbsent}
+                                className="w-5 h-5 rounded-md bg-black/5 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/20 text-black/60 dark:text-white/60 flex items-center justify-center text-xs font-black transition-all disabled:opacity-20"
+                                title="Decrease count (-1)"
+                              >
+                                -
+                              </button>
+                              <span className="px-1.5 py-0.5 rounded-md text-xs font-black bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                                ×{h.subDone}
+                              </span>
+                            </div>
+                          )}
+                          <button
+                            onClick={() => handleIncrementWeekly(h.id)}
+                            disabled={stats.isAbsent}
+                            className="px-2 py-0.5 text-xs font-black rounded-lg bg-black dark:bg-white text-white dark:text-black hover:opacity-90 active:scale-95 transition-all shadow-xs border border-transparent disabled:opacity-20"
+                            title="Add weekly completion (+1 point)"
+                          >
+                            +1
+                          </button>
+                        </div>
                       )}
-                    >
-                      <Check size={14} strokeWidth={4} />
-                    </button>
-                    <span className={cn("flex-1 ml-3 font-medium dark:text-white", (h.completed || stats.isAbsent) && "text-black/30 dark:text-white/30 line-through")}>{h.name}</span>
-                    <button
-                      onClick={() => handleOpenEdit(h)}
-                      disabled={stats.isAbsent}
-                      className={cn("p-2 text-black/20 dark:text-white/20 hover:text-black dark:hover:text-white transition-colors", stats.isAbsent && "opacity-20 cursor-not-allowed")}
-                      title="Edit task"
-                    >
-                      <Pencil size={16} />
-                    </button>
-                    <button
-                      onClick={() => h.isOneOff ? handleDeleteOneOff(h.id) : handleSkip(h.id)}
-                      disabled={stats.isAbsent}
-                      className={cn("p-2 text-black/20 dark:text-white/20 hover:text-red-500 transition-colors", stats.isAbsent && "opacity-20 cursor-not-allowed")}
-                      title={h.isOneOff ? "Delete task" : "Skip task"}
-                    >
-                      <Trash2 size={17} />
-                    </button>
+
+                      <button
+                        onClick={() => handleOpenEdit(h)}
+                        disabled={stats.isAbsent}
+                        className={cn("p-2 text-black/20 dark:text-white/20 hover:text-black dark:hover:text-white transition-colors", stats.isAbsent && "opacity-20 cursor-not-allowed")}
+                        title="Edit task"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        onClick={() => h.isOneOff ? handleDeleteOneOff(h.id) : handleSkip(h.id)}
+                        disabled={stats.isAbsent}
+                        className={cn("p-2 text-black/20 dark:text-white/20 hover:text-red-500 transition-colors", stats.isAbsent && "opacity-20 cursor-not-allowed")}
+                        title={h.isOneOff ? "Delete task" : "Skip task"}
+                      >
+                        <Trash2 size={17} />
+                      </button>
+                    </div>
+
+                    {h.multiplicity > 1 && (
+                      <div className="flex gap-1.5 ml-[40px] mt-2">
+                        {Array.from({ length: h.multiplicity }).map((_, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            disabled={stats.isAbsent}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSubToggle(h.id, idx);
+                            }}
+                            className={cn(
+                              "w-6 h-6 rounded-lg border-2 transition-all flex items-center justify-center cursor-pointer active:scale-90",
+                              idx < h.subDone
+                                ? "bg-black dark:bg-white border-black dark:border-white text-white dark:text-black shadow-xs"
+                                : "border-black/20 dark:border-white/20 text-transparent hover:border-black/40 dark:hover:border-white/40",
+                              stats.isAbsent && "opacity-20 cursor-not-allowed"
+                            )}
+                            title={`Step ${idx + 1} of ${h.multiplicity}`}
+                            aria-label={`Step ${idx + 1} of ${h.multiplicity}`}
+                          >
+                            <Check size={13} strokeWidth={3.5} />
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
                 {stats.habits.length === 0 && (

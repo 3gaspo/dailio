@@ -15,6 +15,9 @@ export interface HabitRowProps {
   onSubToggle: (idx: number) => void;
   onDelete: () => void;
   onEdit?: () => void;
+  isWeekly?: boolean;
+  onIncrementCount?: () => void;
+  onDecrementCount?: () => void;
 }
 
 export const HabitRow: React.FC<HabitRowProps> = ({
@@ -27,7 +30,10 @@ export const HabitRow: React.FC<HabitRowProps> = ({
   onToggle,
   onSubToggle,
   onDelete,
-  onEdit
+  onEdit,
+  isWeekly = false,
+  onIncrementCount,
+  onDecrementCount
 }) => {
   const category = categories.find(c => c.id === habit.categoryId);
   const catColor = category ? getCategoryColor(category) : '#6B7280';
@@ -115,7 +121,50 @@ export const HabitRow: React.FC<HabitRowProps> = ({
         </div>
 
         {!isReorderMode && !isGroupingMode && (
-          <div className="flex items-center shrink-0">
+          <div className="flex items-center shrink-0 gap-1">
+            {isWeekly && habit.completed && (habit.multiplicity <= 1 || !habit.multiplicity) && !habit.isAntiTask && (
+              <div className="flex items-center gap-1 mr-1">
+                {habit.subDone > 1 && (
+                  <div className="flex items-center gap-0.5">
+                    {onDecrementCount && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDecrementCount();
+                        }}
+                        className="w-6 h-6 rounded-lg bg-black/5 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/20 text-black/60 dark:text-white/60 flex items-center justify-center text-xs font-black transition-all active:scale-95"
+                        title="Decrease count (-1)"
+                        aria-label="Decrease count"
+                      >
+                        -
+                      </button>
+                    )}
+                    <span 
+                      className="px-2 py-0.5 rounded-lg text-xs font-black bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 select-none"
+                      title={`${habit.subDone} completions (${habit.subDone} points in total)`}
+                    >
+                      ×{habit.subDone}
+                    </span>
+                  </div>
+                )}
+                {onIncrementCount && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onIncrementCount();
+                    }}
+                    className="px-2.5 py-1 text-xs font-black rounded-xl bg-black dark:bg-white text-white dark:text-black hover:opacity-90 active:scale-95 transition-all shadow-xs border border-transparent flex items-center justify-center"
+                    title="Add weekly completion (+1 point)"
+                    aria-label="Add weekly completion (+1)"
+                  >
+                    +1
+                  </button>
+                )}
+              </div>
+            )}
+
             {onEdit && (
               <button
                 type="button"
@@ -147,7 +196,7 @@ export const HabitRow: React.FC<HabitRowProps> = ({
       </div>
 
       {habit.multiplicity > 1 && !isReorderMode && !isGroupingMode && (
-        <div className="flex gap-1.5 ml-[40px] mb-1 mt-1">
+        <div className="flex gap-1.5 ml-[40px] mb-1.5 mt-1.5">
           {Array.from({ length: habit.multiplicity }).map((_, idx) => (
             <button
               key={idx}
@@ -157,13 +206,15 @@ export const HabitRow: React.FC<HabitRowProps> = ({
                 onSubToggle(idx);
               }}
               className={cn(
-                "w-4 h-4 rounded-md border transition-all flex items-center justify-center",
+                "w-6 h-6 rounded-lg border-2 transition-all flex items-center justify-center cursor-pointer active:scale-90",
                 idx < habit.subDone
-                  ? "bg-black/40 dark:bg-white/40 border-transparent text-white dark:text-black"
-                  : "border-black/10 dark:border-white/10 text-transparent"
+                  ? "bg-black dark:bg-white border-black dark:border-white text-white dark:text-black shadow-xs"
+                  : "border-black/20 dark:border-white/20 text-transparent hover:border-black/40 dark:hover:border-white/40"
               )}
+              title={`Step ${idx + 1} of ${habit.multiplicity}`}
+              aria-label={`Step ${idx + 1} of ${habit.multiplicity}`}
             >
-              <Check size={10} strokeWidth={4} />
+              <Check size={13} strokeWidth={3.5} />
             </button>
           ))}
         </div>

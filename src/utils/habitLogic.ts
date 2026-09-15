@@ -101,14 +101,31 @@ export const computePeriodStats = (
     const multiplicity = h.multiplicity || 1;
     const isAntiTask = !!h.isAntiTask;
     const isDoneExplicitly = periodDoc?.done?.[h.id];
-    
-    // For anti-tasks: they are completed unless explicitly set to false
-    // For normal tasks: they are completed only if explicitly set to true
-    const completed = isAntiTask 
-      ? (isDoneExplicitly !== false) 
-      : (isDoneExplicitly === true);
+    const rawCount = periodDoc?.subDone?.[h.id];
 
-    const subDone = periodDoc?.subDone?.[h.id] ?? (completed ? multiplicity : 0);
+    let completed: boolean;
+    let subDone: number;
+
+    if (multiplicity > 1) {
+      if (rawCount !== undefined) {
+        subDone = rawCount;
+        completed = isAntiTask 
+          ? (isDoneExplicitly !== false && subDone < multiplicity) 
+          : (isDoneExplicitly === true || subDone >= multiplicity);
+      } else {
+        completed = isAntiTask 
+          ? (isDoneExplicitly !== false) 
+          : (isDoneExplicitly === true);
+        subDone = completed ? multiplicity : 0;
+      }
+    } else {
+      completed = isAntiTask 
+        ? (isDoneExplicitly !== false) 
+        : (isDoneExplicitly === true);
+      subDone = completed
+        ? (rawCount !== undefined && rawCount > 0 ? rawCount : 1)
+        : 0;
+    }
 
     habits.push({
       id: h.id,
@@ -130,12 +147,31 @@ export const computePeriodStats = (
       const multiplicity = h.multiplicity || 1;
       const isAntiTask = !!h.isAntiTask;
       const isDoneExplicitly = periodDoc?.done?.[h.id];
-      
-      const completed = isAntiTask 
-        ? (isDoneExplicitly !== false) 
-        : (isDoneExplicitly === true);
+      const rawCount = periodDoc?.subDone?.[h.id];
 
-      const subDone = periodDoc?.subDone?.[h.id] ?? (completed ? multiplicity : 0);
+      let completed: boolean;
+      let subDone: number;
+
+      if (multiplicity > 1) {
+        if (rawCount !== undefined) {
+          subDone = rawCount;
+          completed = isAntiTask 
+            ? (isDoneExplicitly !== false && subDone < multiplicity) 
+            : (isDoneExplicitly === true || subDone >= multiplicity);
+        } else {
+          completed = isAntiTask 
+            ? (isDoneExplicitly !== false) 
+            : (isDoneExplicitly === true);
+          subDone = completed ? multiplicity : 0;
+        }
+      } else {
+        completed = isAntiTask 
+          ? (isDoneExplicitly !== false) 
+          : (isDoneExplicitly === true);
+        subDone = completed
+          ? (rawCount !== undefined && rawCount > 0 ? rawCount : 1)
+          : 0;
+      }
 
       habits.push({
         id: h.id,
@@ -174,7 +210,17 @@ export const computePeriodStats = (
   });
 
   const to_do = habits.length;
-  const doneCount = habits.filter(h => h.completed).length;
+  let doneCount = 0;
+  habits.forEach(h => {
+    if (!h.completed) return;
+    if (periodicity === 'weekly' && h.multiplicity <= 1 && !h.isAntiTask) {
+      // Weekly tasks without multiplicity can be done multiple times, counting as multiple points
+      doneCount += Math.max(1, h.subDone);
+    } else {
+      // Regular tasks and tasks that require multiplicity count only as 1 once fully completed
+      doneCount += 1;
+    }
+  });
   const ratio = to_do === 0 ? 0 : doneCount / to_do;
 
   return {

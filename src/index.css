@@ -7,6 +7,14 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
 body {
   -webkit-tap-highlight-color: transparent;
   user-select: none;
@@ -14,4 +22,57 @@ body {
 
 input, button {
   user-select: auto;
+}
+
+/* Custom styling for color hue slider so it looks polished across dark and light themes */
+input[type="range"].color-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 12px;
+  border-radius: 9999px;
+  outline: none;
+}
+
+input[type="range"].color-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+input[type="range"].color-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.dark input[type="range"].color-slider::-webkit-slider-thumb {
+  background: #18181b;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+input[type="range"].color-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+input[type="range"].color-slider::-moz-range-thumb:hover {
+  transform: scale(1.15);
+}
+
+.dark input[type="range"].color-slider::-moz-range-thumb {
+  background: #18181b;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
 }

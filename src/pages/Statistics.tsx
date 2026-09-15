@@ -215,7 +215,13 @@ export const StatisticsPage: React.FC = () => {
             const catId = (h.categoryId && categoryMap.has(h.categoryId)) ? h.categoryId : uncategorizedKey;
             const bucket = categoryMap.get(catId)!;
             bucket.to_do += 1;
-            if (h.completed) bucket.done += 1;
+            if (h.completed) {
+              if (h.multiplicity <= 1 && !h.isAntiTask) {
+                bucket.done += Math.max(1, h.subDone);
+              } else {
+                bucket.done += 1;
+              }
+            }
           });
         }
       }
@@ -258,7 +264,13 @@ export const StatisticsPage: React.FC = () => {
               const catId = (h.categoryId && categoryMap.has(h.categoryId)) ? h.categoryId : uncategorizedKey;
               const bucket = categoryMap.get(catId)!;
               bucket.to_do += 1;
-              if (h.completed) bucket.done += 1;
+              if (h.completed) {
+                if (h.multiplicity <= 1 && !h.isAntiTask) {
+                  bucket.done += Math.max(1, h.subDone);
+                } else {
+                  bucket.done += 1;
+                }
+              }
             });
           });
         }

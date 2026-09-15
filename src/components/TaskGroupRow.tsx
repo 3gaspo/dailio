@@ -20,6 +20,8 @@ interface TaskGroupRowProps {
   onUngroup: () => void;
   onRenameGroup: (newName: string) => void;
   onReorderHabitsInGroup: (newHabitOrder: string[]) => void;
+  onIncrementHabitCount?: (id: string) => void;
+  onDecrementHabitCount?: (id: string) => void;
 }
 
 export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
@@ -35,7 +37,9 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
   onEditHabit,
   onUngroup,
   onRenameGroup,
-  onReorderHabitsInGroup
+  onReorderHabitsInGroup,
+  onIncrementHabitCount,
+  onDecrementHabitCount
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -198,6 +202,9 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
                         onSubToggle={(idx) => onSubToggleHabit(h.id, h.isOneOff, idx)}
                         onDelete={() => onDeleteHabit(h.id, h.name, h.isOneOff)}
                         onEdit={onEditHabit ? () => onEditHabit(h) : undefined}
+                        isWeekly={group.periodicity === 'weekly'}
+                        onIncrementCount={onIncrementHabitCount ? () => onIncrementHabitCount(h.id) : undefined}
+                        onDecrementCount={onDecrementHabitCount ? () => onDecrementHabitCount(h.id) : undefined}
                       />
                     </Reorder.Item>
                   ))}
@@ -214,6 +221,9 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
                     onSubToggle={(idx) => onSubToggleHabit(h.id, h.isOneOff, idx)}
                     onDelete={() => onDeleteHabit(h.id, h.name, h.isOneOff)}
                     onEdit={onEditHabit ? () => onEditHabit(h) : undefined}
+                    isWeekly={group.periodicity === 'weekly'}
+                    onIncrementCount={onIncrementHabitCount ? () => onIncrementHabitCount(h.id) : undefined}
+                    onDecrementCount={onDecrementHabitCount ? () => onDecrementHabitCount(h.id) : undefined}
                   />
                 ))
               )}
