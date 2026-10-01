@@ -97,10 +97,14 @@ export const HabitRow: React.FC<HabitRowProps> = ({
 
         <div className="flex-1 ml-3 flex items-center gap-3 overflow-hidden">
           <div className="flex flex-col min-w-0">
-            <span className={cn(
-              "font-medium text-base sm:text-lg transition-all truncate",
-              habit.completed && !isGroupingMode ? "text-black/30 dark:text-white/30 line-through" : "text-black dark:text-white"
-            )}>
+            <span 
+              title={habit.isBold ? (isWeekly ? "Not completed in previous active week" : "Not completed yesterday") : undefined}
+              className={cn(
+                "text-base sm:text-lg transition-all truncate",
+                habit.isBold ? "font-bold" : "font-medium",
+                habit.completed && !isGroupingMode ? "text-black/30 dark:text-white/30 line-through" : "text-black dark:text-white"
+              )}
+            >
               {habit.name}
             </span>
             {habit.isAntiTask && (

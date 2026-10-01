@@ -162,7 +162,8 @@ export class FirestoreDataProvider implements DataProvider {
         { name: 'Culture', color: '#22C55E' },
         { name: 'Work', color: '#3B82F6' },
         { name: 'Social', color: '#EC4899' },
-        { name: 'Projects', color: '#A855F7' }
+        { name: 'Projects', color: '#A855F7' },
+        { name: 'Hygiene', color: '#14B8A6' }
       ];
       const batch = writeBatch(this.db);
       const created: Category[] = [];
@@ -175,7 +176,7 @@ export class FirestoreDataProvider implements DataProvider {
       await batch.commit();
       return created;
     }
-    return snap.docs.map(d => {
+    const categories = snap.docs.map(d => {
       const data = d.data();
       return {
         id: d.id,
@@ -183,6 +184,18 @@ export class FirestoreDataProvider implements DataProvider {
         color: data.color || getCategoryDefaultColor(data.name)
       } as Category;
     });
+
+    const migrationKey = `dailio_${uid}_firestore_hygiene_v1`;
+    if (typeof window !== 'undefined' && !localStorage.getItem(migrationKey)) {
+      if (!categories.some(c => c.name.toLowerCase() === 'hygiene' || c.name.toLowerCase() === 'hygiène')) {
+        const newDoc = doc(col);
+        await setDoc(newDoc, cleanData({ name: 'Hygiene', color: '#14B8A6' }));
+        categories.push({ id: newDoc.id, name: 'Hygiene', color: '#14B8A6' });
+      }
+      localStorage.setItem(migrationKey, 'true');
+    }
+
+    return categories;
   }
 
   async addCategory(uid: string, name: string, color?: string): Promise<string> {

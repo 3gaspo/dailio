@@ -6,6 +6,8 @@ export const DEFAULT_CATEGORY_COLORS: Record<string, string> = {
   projects: '#A855F7', // Purple
   work: '#3B82F6',     // Blue
   sport: '#F97316',    // Orange
+  hygiene: '#14B8A6',  // Teal
+  hygiène: '#14B8A6',  // Teal
 };
 
 export const PRESET_COLORS = [

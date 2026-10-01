@@ -1,4 +1,6 @@
-import { Habit, PeriodDoc } from '../types';
+import { Habit, PeriodDoc, DataProvider } from '../types';
+import { getDailyKey, getWeeklyKey, isBeforeOrEqualPeriod } from './dateUtils';
+import { subDays, subWeeks } from 'date-fns';
 
 export interface ComputedHabit {
   id: string;
@@ -9,6 +11,7 @@ export interface ComputedHabit {
   subDone: number;
   isAntiTask: boolean;
   order: number;
+  isBold?: boolean;
 }
 
 export interface PeriodStats {
@@ -231,3 +234,63 @@ export const computePeriodStats = (
     habits
   };
 };
+
+/**
+ * Finds the most recent period (day or week) before the current one that was not marked absent,
+ * and returns the IDs of all habits that were not completed during that period.
+ * If all previous periods are absent (or no previous periods exist), returns an empty Set.
+ */
+export async function getUncompletedHabitsFromPreviousPeriod(
+  data: DataProvider,
+  uid: string,
+  periodicity: 'daily' | 'weekly',
+  habits: Habit[],
+  currentDate: Date = new Date()
+): Promise<Set<string>> {
+  const relevantHabits = habits.filter(h => h.periodicity === periodicity);
+  if (relevantHabits.length === 0) return new Set();
+
+  const habitDates = relevantHabits.map(h => {
+    return h.createdAt instanceof Date 
+      ? h.createdAt 
+      : (h.createdAt && typeof (h.createdAt as any).toDate === 'function')
+        ? (h.createdAt as any).toDate()
+        : new Date(h.createdAt as any);
+  });
+  const earliestDate = new Date(Math.min(...habitDates.map(d => d.getTime())));
+
+  const maxLookback = periodicity === 'daily' ? 60 : 52;
+
+  for (let i = 1; i <= maxLookback; i++) {
+    const cursor = periodicity === 'daily' 
+      ? subDays(currentDate, i) 
+      : subWeeks(currentDate, i);
+
+    const key = periodicity === 'daily' ? getDailyKey(cursor) : getWeeklyKey(cursor);
+
+    // If key is before the earliest habit creation period, stop searching
+    if (!isBeforeOrEqualPeriod(earliestDate, key, periodicity)) {
+      break;
+    }
+
+    const doc = await data.getPeriodDoc(uid, periodicity, key);
+
+    // If marked absent, skip and continue searching backwards for a non-absent period
+    if (doc?.isAbsent) {
+      continue;
+    }
+
+    // Found the most recent non-absent period!
+    const stats = computePeriodStats(key, periodicity, habits, doc);
+    const uncompletedIds = new Set<string>();
+    stats.habits.forEach(h => {
+      if (!h.completed) {
+        uncompletedIds.add(h.id);
+      }
+    });
+    return uncompletedIds;
+  }
+
+  // All checked periods were absent or no previous period exists
+  return new Set();
+}

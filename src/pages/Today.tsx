@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useApp } from '../providers/AppProvider';
 import { getDailyKey, getWeeklyKey } from '../utils/dateUtils';
-import { computePeriodStats, ComputedHabit } from '../utils/habitLogic';
+import { computePeriodStats, ComputedHabit, getUncompletedHabitsFromPreviousPeriod } from '../utils/habitLogic';
 import { Habit, PeriodDoc, TaskGroup, UserSettings } from '../types';
 import { Plus, ArrowUpDown, X, Layers, FolderPlus } from 'lucide-react';
 import { Modal } from '../components/Modal';
@@ -17,12 +17,12 @@ interface TopLevelItem {
   id: string;
   type: 'group' | 'habit';
   group?: TaskGroup;
-  groupHabits?: (ComputedHabit & { completed: boolean })[];
-  habit?: ComputedHabit & { completed: boolean };
+  groupHabits?: (ComputedHabit & { completed: boolean; isBold?: boolean })[];
+  habit?: ComputedHabit & { completed: boolean; isBold?: boolean };
 }
 
 function buildTopLevelItems(
-  habits: (ComputedHabit & { completed: boolean })[],
+  habits: (ComputedHabit & { completed: boolean; isBold?: boolean })[],
   taskGroups: TaskGroup[],
   habitOrder?: string[],
   isReorderMode: boolean = false
@@ -31,13 +31,13 @@ function buildTopLevelItems(
   const groupedHabitIds = new Set<string>();
   activeGroups.forEach(g => g.habitIds.forEach(id => groupedHabitIds.add(id)));
 
-  const habitMap = new Map<string, ComputedHabit & { completed: boolean }>();
+  const habitMap = new Map<string, ComputedHabit & { completed: boolean; isBold?: boolean }>();
   habits.forEach(h => habitMap.set(h.id, h));
 
   const groupItems: TopLevelItem[] = activeGroups.map(group => {
     const groupHabits = group.habitIds
       .map(id => habitMap.get(id))
-      .filter((h): h is ComputedHabit & { completed: boolean } => !!h);
+      .filter((h): h is ComputedHabit & { completed: boolean; isBold?: boolean } => !!h);
     return {
       id: group.id,
       type: 'group',
@@ -144,6 +144,9 @@ export const TodayPage: React.FC = () => {
   const dailyKey = getDailyKey();
   const weeklyKey = getWeeklyKey();
 
+  const [uncompletedPrevDailyHabitIds, setUncompletedPrevDailyHabitIds] = useState<Set<string>>(new Set());
+  const [uncompletedPrevWeeklyHabitIds, setUncompletedPrevWeeklyHabitIds] = useState<Set<string>>(new Set());
+
   const fetchData = async () => {
     if (!user) {
       setLoading(false);
@@ -156,6 +159,13 @@ export const TodayPage: React.FC = () => {
       data.getSettings(user.uid)
     ]);
     setHabits(h);
+
+    const [uncompletedDaily, uncompletedWeekly] = await Promise.all([
+      getUncompletedHabitsFromPreviousPeriod(data, user.uid, 'daily', h),
+      getUncompletedHabitsFromPreviousPeriod(data, user.uid, 'weekly', h)
+    ]);
+    setUncompletedPrevDailyHabitIds(uncompletedDaily);
+    setUncompletedPrevWeeklyHabitIds(uncompletedWeekly);
 
     const loadedDailyGroups = d?.taskGroups ?? settings?.defaultDailyTaskGroups ?? [];
     const loadedDailyOrder = d?.habitOrder ?? settings?.defaultDailyHabitOrder ?? [];
@@ -211,13 +221,27 @@ export const TodayPage: React.FC = () => {
     [weeklyKey, habits, weeklyDoc]
   );
 
+  const dailyHabitsWithBold = useMemo(() => {
+    return dailyStats.habits.map(h => ({
+      ...h,
+      isBold: uncompletedPrevDailyHabitIds.has(h.id)
+    }));
+  }, [dailyStats.habits, uncompletedPrevDailyHabitIds]);
+
+  const weeklyHabitsWithBold = useMemo(() => {
+    return weeklyStats.habits.map(h => ({
+      ...h,
+      isBold: uncompletedPrevWeeklyHabitIds.has(h.id)
+    }));
+  }, [weeklyStats.habits, uncompletedPrevWeeklyHabitIds]);
+
   useEffect(() => {
-    setLocalDailyHabits(dailyStats.habits);
-  }, [dailyStats.habits]);
+    setLocalDailyHabits(dailyHabitsWithBold);
+  }, [dailyHabitsWithBold]);
   
   useEffect(() => {
-    setLocalWeeklyHabits(weeklyStats.habits);
-  }, [weeklyStats.habits]);
+    setLocalWeeklyHabits(weeklyHabitsWithBold);
+  }, [weeklyHabitsWithBold]);
 
   const displayDailyHabits = useMemo(() => {
     if (selectedCategoryId === 'all') return localDailyHabits;
@@ -436,7 +460,8 @@ export const TodayPage: React.FC = () => {
       newSubDone[id] = !current ? 1 : 0;
     }
 
-    const updatedHabits = [...stats.habits].map(h => 
+    const currentLocalHabits = periodicity === 'daily' ? localDailyHabits : localWeeklyHabits;
+    const updatedHabits = currentLocalHabits.map(h => 
       h.id === id ? { ...h, completed: !current, subDone: !current ? (h.multiplicity > 1 ? h.multiplicity : 1) : 0 } : h
     );
 
@@ -475,7 +500,8 @@ export const TodayPage: React.FC = () => {
     const newDone = { ...(doc?.done || {}), [id]: isNowDone };
     const newSubDone = { ...(doc?.subDone || {}), [id]: newCount };
 
-    const updatedHabits = [...stats.habits].map(h => 
+    const currentLocalHabits = periodicity === 'daily' ? localDailyHabits : localWeeklyHabits;
+    const updatedHabits = currentLocalHabits.map(h => 
       h.id === id ? { ...h, completed: isNowDone, subDone: newCount } : h
     );
 

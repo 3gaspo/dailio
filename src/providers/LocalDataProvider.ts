@@ -125,12 +125,21 @@ export class LocalDataProvider implements DataProvider {
         { id: 'cat_culture', name: 'Culture', color: '#22C55E' },
         { id: 'cat_work', name: 'Work', color: '#3B82F6' },
         { id: 'cat_social', name: 'Social', color: '#EC4899' },
-        { id: 'cat_projects', name: 'Projects', color: '#A855F7' }
+        { id: 'cat_projects', name: 'Projects', color: '#A855F7' },
+        { id: 'cat_hygiene', name: 'Hygiene', color: '#14B8A6' }
       ];
       localStorage.setItem(this.getStorageKey(uid, 'categories'), JSON.stringify(defaults));
       return defaults;
     }
     const parsed: Category[] = JSON.parse(data);
+    const migrationKey = this.getStorageKey(uid, 'hygiene_added_v1');
+    if (!localStorage.getItem(migrationKey)) {
+      if (!parsed.some(c => c.name.toLowerCase() === 'hygiene' || c.name.toLowerCase() === 'hygiène')) {
+        parsed.push({ id: 'cat_hygiene', name: 'Hygiene', color: '#14B8A6' });
+        localStorage.setItem(this.getStorageKey(uid, 'categories'), JSON.stringify(parsed));
+      }
+      localStorage.setItem(migrationKey, 'true');
+    }
     return parsed.map(c => ({
       ...c,
       color: c.color || getCategoryDefaultColor(c.name)
