@@ -102,7 +102,9 @@ export const HabitRow: React.FC<HabitRowProps> = ({
               className={cn(
                 "text-base sm:text-lg transition-all truncate",
                 habit.isBold ? "font-bold" : "font-medium",
-                habit.completed && !isGroupingMode ? "text-black/30 dark:text-white/30 line-through" : "text-black dark:text-white"
+                habit.completed && !isGroupingMode 
+                  ? (habit.isBold ? "text-orange-500/40 dark:text-orange-400/40 line-through" : "text-black/30 dark:text-white/30 line-through")
+                  : (habit.isBold ? "text-orange-500 dark:text-orange-400" : "text-black dark:text-white")
               )}
             >
               {habit.name}
