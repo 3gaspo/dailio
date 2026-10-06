@@ -538,7 +538,7 @@ export const TodayPage: React.FC = () => {
     const newDone = { ...(doc?.done || {}), [id]: true };
     const newSubDone = { ...(doc?.subDone || {}), [id]: newCount };
 
-    const updatedHabits = [...stats.habits].map(h => 
+    const updatedHabits = localWeeklyHabits.map(h => 
       h.id === id ? { ...h, completed: true, subDone: newCount } : h
     );
 
@@ -574,11 +574,11 @@ export const TodayPage: React.FC = () => {
     const newDone = { ...(doc?.done || {}), [id]: true };
     const newSubDone = { ...(doc?.subDone || {}), [id]: newCount };
 
-    const updatedHabits = [...stats.habits].map(h => 
+    const updatedHabitsDecrement = localWeeklyHabits.map(h => 
       h.id === id ? { ...h, completed: true, subDone: newCount } : h
     );
 
-    setLocalWeeklyHabits(updatedHabits);
+    setLocalWeeklyHabits(updatedHabitsDecrement);
 
     const updateState = (prev: PeriodDoc | null): PeriodDoc => {
       const base = prev || { done: {}, skippedHabitIds: [], oneOffHabits: [], updatedAt: new Date() };

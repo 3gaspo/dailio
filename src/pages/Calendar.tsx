@@ -495,7 +495,7 @@ export const CalendarPage: React.FC = () => {
                       >
                         <Check size={14} strokeWidth={4} />
                       </button>
-                      <span className={cn("flex-1 ml-3 font-medium dark:text-white truncate", (h.completed || stats.isAbsent) && "text-black/30 dark:text-white/30 line-through")}>{h.name}</span>
+                      <span className={cn("flex-1 min-w-0 ml-3 font-medium dark:text-white truncate", (h.completed || stats.isAbsent) && "text-black/30 dark:text-white/30 line-through")}>{h.name}</span>
                       
                       {view === 'weekly' && h.completed && (h.multiplicity <= 1 || !h.multiplicity) && !h.isAntiTask && (
                         <div className="flex items-center gap-1 shrink-0 mr-1">

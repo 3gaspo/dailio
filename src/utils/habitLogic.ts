@@ -250,15 +250,6 @@ export async function getUncompletedHabitsFromPreviousPeriod(
   const relevantHabits = habits.filter(h => h.periodicity === periodicity);
   if (relevantHabits.length === 0) return new Set();
 
-  const habitDates = relevantHabits.map(h => {
-    return h.createdAt instanceof Date 
-      ? h.createdAt 
-      : (h.createdAt && typeof (h.createdAt as any).toDate === 'function')
-        ? (h.createdAt as any).toDate()
-        : new Date(h.createdAt as any);
-  });
-  const earliestDate = new Date(Math.min(...habitDates.map(d => d.getTime())));
-
   const maxLookback = periodicity === 'daily' ? 60 : 52;
 
   for (let i = 1; i <= maxLookback; i++) {
@@ -268,11 +259,6 @@ export async function getUncompletedHabitsFromPreviousPeriod(
 
     const key = periodicity === 'daily' ? getDailyKey(cursor) : getWeeklyKey(cursor);
 
-    // If key is before the earliest habit creation period, stop searching
-    if (!isBeforeOrEqualPeriod(earliestDate, key, periodicity)) {
-      break;
-    }
-
     const doc = await data.getPeriodDoc(uid, periodicity, key);
 
     // If marked absent, skip and continue searching backwards for a non-absent period
@@ -281,13 +267,46 @@ export async function getUncompletedHabitsFromPreviousPeriod(
     }
 
     // Found the most recent non-absent period!
-    const stats = computePeriodStats(key, periodicity, habits, doc);
     const uncompletedIds = new Set<string>();
-    stats.habits.forEach(h => {
-      if (!h.completed) {
+
+    for (const h of relevantHabits) {
+      // If habit was marked deleted before or on this key, ignore it
+      if (h.deletedFromPeriodKey && key >= h.deletedFromPeriodKey) {
+        continue;
+      }
+      // If skipped in this period doc
+      if (doc?.skippedHabitIds?.includes(h.id)) {
+        uncompletedIds.add(h.id);
+        continue;
+      }
+
+      const multiplicity = h.multiplicity || 1;
+      const isAntiTask = !!h.isAntiTask;
+      const isDoneExplicitly = doc?.done?.[h.id];
+      const rawCount = doc?.subDone?.[h.id];
+
+      let completed: boolean;
+      if (multiplicity > 1) {
+        if (rawCount !== undefined) {
+          completed = isAntiTask 
+            ? (isDoneExplicitly !== false && rawCount < multiplicity) 
+            : (isDoneExplicitly === true || rawCount >= multiplicity);
+        } else {
+          completed = isAntiTask 
+            ? (isDoneExplicitly !== false) 
+            : (isDoneExplicitly === true);
+        }
+      } else {
+        completed = isAntiTask 
+          ? (isDoneExplicitly !== false) 
+          : (isDoneExplicitly === true);
+      }
+
+      if (!completed) {
         uncompletedIds.add(h.id);
       }
-    });
+    }
+
     return uncompletedIds;
   }
 

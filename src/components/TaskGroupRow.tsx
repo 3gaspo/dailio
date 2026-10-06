@@ -8,7 +8,7 @@ import { HabitRow } from './HabitRow';
 
 interface TaskGroupRowProps {
   group: TaskGroup;
-  habits: (ComputedHabit & { completed: boolean })[];
+  habits: (ComputedHabit & { completed: boolean; isBold?: boolean })[];
   categories: Category[];
   isReorderMode: boolean;
   isGroupingMode: boolean;
@@ -49,6 +49,10 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
   const completedTasks = habits.filter(h => h.completed).length;
   const isAllCompleted = totalTasks > 0 && completedTasks === totalTasks;
 
+  const hasOrangeSubtask = useMemo(() => {
+    return habits.some(h => !!h.isBold);
+  }, [habits]);
+
   const displayHabits = useMemo(() => {
     if (isReorderMode) {
       return habits;
@@ -67,11 +71,22 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
 
   return (
     <div className={cn(
-      "flex flex-col bg-white dark:bg-white/5 rounded-2xl border border-black/5 dark:border-white/5 shadow-xs overflow-hidden transition-all",
-      isExpanded ? "ring-2 ring-black/10 dark:ring-white/10" : "hover:border-black/15 dark:hover:border-white/15"
+      "flex flex-col bg-white dark:bg-white/5 rounded-2xl border shadow-xs overflow-hidden transition-all",
+      hasOrangeSubtask
+        ? (isExpanded 
+            ? "border-orange-500/35 dark:border-orange-400/35 ring-2 ring-orange-500/20 dark:ring-orange-400/20" 
+            : "border-orange-500/30 dark:border-orange-400/30 hover:border-orange-500/50 dark:hover:border-orange-400/50")
+        : (isExpanded 
+            ? "border-black/5 dark:border-white/5 ring-2 ring-black/10 dark:ring-white/10" 
+            : "border-black/5 dark:border-white/5 hover:border-black/15 dark:hover:border-white/15")
     )}>
       {/* Group Header */}
-      <div className="flex items-center p-3 sm:p-4 gap-3 bg-black/[0.02] dark:bg-white/[0.02]">
+      <div className={cn(
+        "flex items-center p-3 sm:p-4 gap-3 transition-colors",
+        hasOrangeSubtask && !isAllCompleted
+          ? "bg-orange-500/[0.04] dark:bg-orange-400/[0.04]"
+          : "bg-black/[0.02] dark:bg-white/[0.02]"
+      )}>
         {/* Reorder drag handle */}
         {isReorderMode && (
           <div className="p-1 text-black/30 dark:text-white/30 cursor-grab active:cursor-grabbing shrink-0">
@@ -91,7 +106,9 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
               "w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all shrink-0",
               isAllCompleted 
                 ? "bg-black dark:bg-white border-black dark:border-white text-white dark:text-black shadow-xs" 
-                : "border-black/20 dark:border-white/20 text-transparent hover:border-black/40 dark:hover:border-white/40"
+                : (hasOrangeSubtask 
+                    ? "border-orange-500/30 dark:border-orange-400/30 text-transparent hover:border-orange-500/60 dark:hover:border-orange-400/60" 
+                    : "border-black/20 dark:border-white/20 text-transparent hover:border-black/40 dark:hover:border-white/40")
             )}
             title={isAllCompleted ? "Mark group as incomplete" : "Mark group as complete"}
           >
@@ -107,12 +124,23 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
           <ChevronRight 
             size={18} 
             className={cn(
-              "text-black/40 dark:text-white/40 transition-transform duration-200 shrink-0",
-              isExpanded && "rotate-90 text-black dark:text-white"
+              "transition-transform duration-200 shrink-0",
+              isExpanded && "rotate-90",
+              hasOrangeSubtask
+                ? (isAllCompleted ? "text-orange-500/40 dark:text-orange-400/40" : "text-orange-500 dark:text-orange-400")
+                : (isExpanded ? "text-black dark:text-white" : "text-black/40 dark:text-white/40")
             )} 
           />
 
-          <Folder size={18} className="text-black/50 dark:text-white/50 shrink-0" />
+          <Folder 
+            size={18} 
+            className={cn(
+              "shrink-0 transition-colors",
+              hasOrangeSubtask
+                ? (isAllCompleted ? "text-orange-500/40 dark:text-orange-400/40" : "text-orange-500 dark:text-orange-400")
+                : "text-black/50 dark:text-white/50"
+            )} 
+          />
 
           {isEditingName ? (
             <input
@@ -126,15 +154,27 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
               className="bg-white dark:bg-neutral-800 border border-black/20 dark:border-white/20 rounded-lg px-2 py-0.5 text-sm font-bold outline-none dark:text-white"
             />
           ) : (
-            <span className={cn(
-              "font-bold text-base truncate dark:text-white",
-              isAllCompleted && "line-through text-black/40 dark:text-white/40"
-            )}>
+            <span 
+              title={hasOrangeSubtask ? (group.periodicity === 'weekly' ? "Contains uncompleted tasks from previous active week" : "Contains uncompleted tasks from yesterday") : undefined}
+              className={cn(
+                "font-bold text-base truncate transition-colors",
+                hasOrangeSubtask
+                  ? (isAllCompleted ? "text-orange-500/40 dark:text-orange-400/40 line-through" : "text-orange-500 dark:text-orange-400")
+                  : (isAllCompleted ? "line-through text-black/40 dark:text-white/40" : "text-black dark:text-white")
+              )}
+            >
               {group.name}
             </span>
           )}
 
-          <span className="text-[10px] font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-black/60 dark:text-white/60 shrink-0 ml-1">
+          <span className={cn(
+            "text-[10px] font-bold tracking-wider px-2.5 py-0.5 rounded-full shrink-0 ml-1 transition-colors",
+            hasOrangeSubtask
+              ? (isAllCompleted 
+                  ? "bg-orange-500/10 text-orange-500/50 dark:text-orange-400/50" 
+                  : "bg-orange-500/15 text-orange-600 dark:text-orange-400 font-extrabold")
+              : "bg-black/5 dark:bg-white/10 text-black/60 dark:text-white/60"
+          )}>
             {completedTasks}/{totalTasks}
           </span>
         </div>
@@ -179,7 +219,10 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
             transition={{ duration: 0.2 }}
             className="overflow-hidden border-t border-black/5 dark:border-white/5 bg-black/[0.01] dark:bg-white/[0.01]"
           >
-            <div className="p-3 pl-4 sm:pl-8 space-y-2 border-l-2 border-black/10 dark:border-white/10 my-2 ml-4">
+            <div className={cn(
+              "p-3 pl-4 sm:pl-8 space-y-2 border-l-2 my-2 ml-4 transition-colors",
+              hasOrangeSubtask ? "border-orange-500/35 dark:border-orange-400/35" : "border-black/10 dark:border-white/10"
+            )}>
               {totalTasks === 0 ? (
                 <p className="text-xs italic text-black/30 dark:text-white/30 py-2">No tasks in this group</p>
               ) : isReorderMode ? (
