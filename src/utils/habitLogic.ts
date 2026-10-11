@@ -22,6 +22,42 @@ export interface PeriodStats {
   habits: (ComputedHabit & { completed: boolean })[];
 }
 
+/**
+ * Checks if a period doc has any entered data by the user.
+ */
+export function hasEnteredData(periodDoc: PeriodDoc | null | undefined): boolean {
+  if (!periodDoc) return false;
+  if (periodDoc.done && Object.keys(periodDoc.done).length > 0) return true;
+  if (periodDoc.subDone && Object.values(periodDoc.subDone).some(v => typeof v === 'number' && v > 0)) return true;
+  if (periodDoc.oneOffHabits && periodDoc.oneOffHabits.length > 0) return true;
+  if (periodDoc.skippedHabitIds && periodDoc.skippedHabitIds.length > 0) return true;
+  return false;
+}
+
+/**
+ * Checks if a period should be considered absent.
+ * - If explicitly marked by user (isAbsent === true / false), honors it.
+ * - If past period with no data entered, automatically marks as absent.
+ */
+export function isPeriodAbsent(
+  periodDoc: PeriodDoc | null | undefined,
+  periodKey: string,
+  periodicity: 'daily' | 'weekly',
+  currentDate: Date = new Date()
+): boolean {
+  if (periodDoc?.isAbsent === true) return true;
+  if (periodDoc?.isAbsent === false) return false;
+
+  const currentKey = periodicity === 'daily' ? getDailyKey(currentDate) : getWeeklyKey(currentDate);
+  const isPast = periodKey < currentKey;
+
+  if (isPast && !hasEnteredData(periodDoc)) {
+    return true;
+  }
+
+  return false;
+}
+
 export const computePeriodStats = (
   periodKey: string,
   periodicity: 'daily' | 'weekly',
@@ -29,7 +65,7 @@ export const computePeriodStats = (
   periodDoc: PeriodDoc | null,
   categoryId?: string
 ): PeriodStats => {
-  const isAbsent = !!periodDoc?.isAbsent;
+  const isAbsent = isPeriodAbsent(periodDoc, periodKey, periodicity);
   const habits: (ComputedHabit & { completed: boolean })[] = [];
   const filterCat = categoryId && categoryId !== 'all' ? categoryId : null;
   
@@ -109,7 +145,11 @@ export const computePeriodStats = (
     let completed: boolean;
     let subDone: number;
 
-    if (multiplicity > 1) {
+    if (isAbsent) {
+      // On an absent day, habits (including anti-tasks) are not active/completed
+      completed = false;
+      subDone = 0;
+    } else if (multiplicity > 1) {
       if (rawCount !== undefined) {
         subDone = rawCount;
         completed = isAntiTask 
@@ -155,7 +195,10 @@ export const computePeriodStats = (
       let completed: boolean;
       let subDone: number;
 
-      if (multiplicity > 1) {
+      if (isAbsent) {
+        completed = false;
+        subDone = 0;
+      } else if (multiplicity > 1) {
         if (rawCount !== undefined) {
           subDone = rawCount;
           completed = isAntiTask 
@@ -214,17 +257,19 @@ export const computePeriodStats = (
 
   const to_do = habits.length;
   let doneCount = 0;
-  habits.forEach(h => {
-    if (!h.completed) return;
-    if (periodicity === 'weekly' && h.multiplicity <= 1 && !h.isAntiTask) {
-      // Weekly tasks without multiplicity can be done multiple times, counting as multiple points
-      doneCount += Math.max(1, h.subDone);
-    } else {
-      // Regular tasks and tasks that require multiplicity count only as 1 once fully completed
-      doneCount += 1;
-    }
-  });
-  const ratio = to_do === 0 ? 0 : doneCount / to_do;
+  if (!isAbsent) {
+    habits.forEach(h => {
+      if (!h.completed) return;
+      if (periodicity === 'weekly' && h.multiplicity <= 1 && !h.isAntiTask) {
+        // Weekly tasks without multiplicity can be done multiple times, counting as multiple points
+        doneCount += Math.max(1, h.subDone);
+      } else {
+        // Regular tasks and tasks that require multiplicity count only as 1 once fully completed
+        doneCount += 1;
+      }
+    });
+  }
+  const ratio = (to_do === 0 || isAbsent) ? 0 : doneCount / to_do;
 
   return {
     to_do,
@@ -262,7 +307,7 @@ export async function getUncompletedHabitsFromPreviousPeriod(
     const doc = await data.getPeriodDoc(uid, periodicity, key);
 
     // If marked absent, skip and continue searching backwards for a non-absent period
-    if (doc?.isAbsent) {
+    if (isPeriodAbsent(doc, key, periodicity, currentDate)) {
       continue;
     }
 

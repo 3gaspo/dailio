@@ -282,8 +282,9 @@ export const CalendarPage: React.FC = () => {
   const handleToggleAbsent = async () => {
     if (!user || !selectedPeriod) return;
     const { key } = selectedPeriod;
-    const doc = periodDocs[key];
-    const newAbsent = !(doc?.isAbsent);
+    const doc = periodDocs[key] || null;
+    const stats = computePeriodStats(key, view, habits, doc);
+    const newAbsent = !stats.isAbsent;
     await data.updatePeriodDoc(user.uid, view, key, { isAbsent: newAbsent });
     fetchData();
   };
@@ -335,7 +336,7 @@ export const CalendarPage: React.FC = () => {
               )}
             >
               <span className="text-sm font-bold">{format(d, 'd')}</span>
-              {stats.to_do > 0 && !isDone && (
+              {stats.to_do > 0 && !isDone && !isAbsent && (
                 <div className="absolute bottom-1.5 w-1 h-1 bg-black/20 dark:bg-white/20 rounded-full" />
               )}
             </button>
@@ -388,7 +389,7 @@ export const CalendarPage: React.FC = () => {
             >
               <span className="text-[10px] font-bold opacity-40 mb-0.5">W</span>
               <span className="text-sm font-bold">{weekNum}</span>
-              {stats.to_do > 0 && !isDone && (
+              {stats.to_do > 0 && !isDone && !isAbsent && (
                 <div className="absolute bottom-1.5 w-1 h-1 bg-black/20 dark:bg-white/20 rounded-full" />
               )}
             </button>

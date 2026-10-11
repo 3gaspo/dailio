@@ -196,8 +196,8 @@ export const StatisticsPage: React.FC = () => {
         // Current day for daily view
         const key = getDailyKey();
         const doc = periodDocs[key] || null;
-        if (!doc?.isAbsent) {
-          const stats = computePeriodStats(key, 'daily', habits, doc);
+        const stats = computePeriodStats(key, 'daily', habits, doc);
+        if (!stats.isAbsent) {
           stats.habits.forEach(h => {
             const catId = (h.categoryId && categoryMap.has(h.categoryId)) ? h.categoryId : uncategorizedKey;
             const bucket = categoryMap.get(catId)!;
@@ -209,8 +209,8 @@ export const StatisticsPage: React.FC = () => {
         // Current week for weekly view
         const key = getWeeklyKey();
         const doc = periodDocs[key] || null;
-        if (!doc?.isAbsent) {
-          const stats = computePeriodStats(key, 'weekly', habits, doc);
+        const stats = computePeriodStats(key, 'weekly', habits, doc);
+        if (!stats.isAbsent) {
           stats.habits.forEach(h => {
             const catId = (h.categoryId && categoryMap.has(h.categoryId)) ? h.categoryId : uncategorizedKey;
             const bucket = categoryMap.get(catId)!;
@@ -244,8 +244,8 @@ export const StatisticsPage: React.FC = () => {
           days.forEach(d => {
             const key = getDailyKey(d);
             const doc = periodDocs[key] || null;
-            if (doc?.isAbsent) return;
             const stats = computePeriodStats(key, 'daily', habits, doc);
+            if (stats.isAbsent) return;
             stats.habits.forEach(h => {
               const catId = (h.categoryId && categoryMap.has(h.categoryId)) ? h.categoryId : uncategorizedKey;
               const bucket = categoryMap.get(catId)!;
@@ -258,8 +258,8 @@ export const StatisticsPage: React.FC = () => {
           weeks.forEach(w => {
             const key = getWeeklyKey(w);
             const doc = periodDocs[key] || null;
-            if (doc?.isAbsent) return;
             const stats = computePeriodStats(key, 'weekly', habits, doc);
+            if (stats.isAbsent) return;
             stats.habits.forEach(h => {
               const catId = (h.categoryId && categoryMap.has(h.categoryId)) ? h.categoryId : uncategorizedKey;
               const bucket = categoryMap.get(catId)!;
