@@ -1,137 +1,106 @@
-# 🌸 Dailio — Minimalist Habit Tracker
+# Dailio
 
-Dailio is a gorgeous, minimalist habit-tracking web application designed with desktop-first precision and mobile-first responsiveness. It focuses on maximizing your done/to-do completion ratio over daily and weekly periods, helping you build positive habits and break negative ones with extreme clarity.
+Dailio suit des habitudes quotidiennes et hebdomadaires, ainsi que des tâches ponctuelles. Il permet de consulter et de modifier les périodes passées, de gérer les absences et de suivre la progression.
 
----
+## Fonctionnalités
 
-## 🎨 Visual Philosophy & Theme
-Dailio is built with a clean, high-contrast, Swiss-modern aesthetic:
-- **Typography**: Paired with elegant display headings and monospaced indicators for structured data tracking.
-- **Dual Themes**: Fully supports polished Light Mode (default) and Slate Dark Mode. Visual line charts and plot elements automatically adjust (e.g., high-visibility white lines on dark backdrops, dark lines on light backdrops).
-- **Layout & Spacing**: Features ample negative space, smooth entry animations, blurred backdrop-filter modals, and strict scroll locks on mobile views.
+- Habitudes quotidiennes ou hebdomadaires, tâches ponctuelles et anti-tâches à éviter.
+- Catégories colorées, filtre par catégorie, groupes et réorganisation des habitudes.
+- Multiplicité de 1 à 10 sous-étapes ; compteurs de répétitions pour les habitudes hebdomadaires concernées.
+- Calendrier mensuel des journées et vue annuelle des semaines, avec édition des périodes et gestion des absences.
+- Objectifs quotidiens et hebdomadaires, ratios de complétion et statistiques.
+- Export CSV des compteurs quotidiens et hebdomadaires depuis le début de l’année courante.
+- Thèmes clair et sombre persistants, connexion locale ou Firebase.
 
----
+## Écrans
 
-## ✨ Features Breakdown
+| URL | Écran |
+| --- | --- |
+| `/today` | Today : habitudes courantes et ajout |
+| `/calendar` | Calendar : journées et semaines |
+| `/statistics` | Statistics |
+| `/settings` | Settings : objectifs, catégories, thème, compte et export |
 
-### 1. Flexible Habit Categories
-Track your life in multiple styles:
-- **Daily Habits**: Standard routines that reset each morning.
-- **Weekly Habits**: Long-term tasks to accomplish by Sunday.
-- **One-off Tasks**: Quick target objectives added directly to a specific period.
-- **Anti-Tasks (Negative Reinforcement)**: 
-  - *Checked by default* at the start of each period.
-  - You uncheck them if you perform the undesired action (e.g., "Sweets", "Procrastination"). This lets you track slip-ups without ruining standard completion streaks.
+La racine `/` redirige vers l’accueil. La connexion s’affiche lorsqu’aucune session n’est active. Les écrans secondaires sont chargés à la demande.
 
-### 2. Multiplicity (Sub-Tasks)
-- Set a frequency threshold from **1 to 5** when creating or editing a habit.
-- Displays elegant tiny sub-checkbox bubbles next to the habit name on the dashboard.
-- **Smart Completion Logic**:
-  - Checking the overall task checks all sub-tasks instantly.
-  - Toggling sub-tasks incrementally updates progress.
-  - Checking all sub-tasks automatically completes the parent task.
-  - Only fully-completed habits count toward your ratio and earn progress marks.
+## Stack et organisation
 
-### 3. Static Custom Reordering
-- Enter **Reorder Mode** to prioritize your dashboard.
-- Seamless drag-and-drop sorting powered by `motion` layout animations.
-- **Smart Order Preservation**: During normal usage, checked tasks temporarily slide to the end of your list to clean up the screen. However, Dailio remembers your custom *static layout order* so that when habits reset for the next day, they reappear in your exact preferred sequence.
+React 19, TypeScript 5.8, Vite 6, Tailwind CSS 4, React Router, Lucide et Firebase Authentication / Firestore, avec Recharts pour les graphiques.
 
-### 4. Interactive Calendar Heatmap
-- A comprehensive monthly overview illustrating completion consistency.
-- **Dynamic Coding Grid**:
-  - **🟩 Green**: 100% completion (all daily tasks accomplished).
-  - **🟨 Amber**: Met your custom daily done/to-do objective ratio (e.g., 70% complete).
-  - **🟥 Red**: Incomplete day falling below target goals.
-  - **⬜ Grey/Translucent**: Days outside the current month boundaries or marked absent.
-- **Absent Toggle**: Mark specific days as vacation or sick days to gracefully pause tracking and preserve your long-term streak consistency.
-- **Correct Calendar Boundaries**: The calendar accounts for precise day offsets (weeks start on Monday) and accurately colors past-month boundary dates from any active calendar viewport.
+- [src/pages/](src/pages/) : écrans de l’application.
+- [src/providers/](src/providers/) : interface commune des fournisseurs et implémentations locales/Firebase.
+- [src/components/HabitRow.tsx](src/components/HabitRow.tsx) et [src/components/TaskGroupRow.tsx](src/components/TaskGroupRow.tsx) : habitudes, sous-étapes et groupes.
+- [src/utils/habitLogic.ts](src/utils/habitLogic.ts) : complétion, ratios et règles d’absence.
+- [src/utils/dateUtils.ts](src/utils/dateUtils.ts) : clés des jours et semaines.
+- [tests/history-loading.test.ts](tests/history-loading.test.ts) : règles métier et chargement historique.
+- [src/styles/](src/styles/) : imports des styles partagés et styles propres à l’application.
 
-### 5. Detailed Analytics & Charts
-- Beautiful, clear trend lines representing completion ratios.
-- Quick stats showcasing your streaks, completion percentages, and overall ratio improvements.
+## Installation
 
----
-
-## 🏗️ Technical Architecture
-
-Dailio uses a highly modular and extensible architecture:
-
-```
-src/
-├── providers/
-│   ├── AppProvider.tsx            # Context unifying Auth & Data layers
-│   ├── FirebaseAuthProvider.ts    # Firebase Authentication connector
-│   ├── FirestoreDataProvider.ts   # Remote database Firestore backend
-│   ├── LocalAuthProvider.ts       # Offline localStorage auth simulator
-│   └── LocalDataProvider.ts       # Offline localStorage persistence
-├── pages/
-│   ├── Today.tsx                  # Dashboard with reordering, checking & modals
-│   ├── Calendar.tsx               # Grid of completion heatmaps & past edits
-│   ├── Statistics.tsx             # Interactive charts & habit metrics
-│   └── Settings.tsx               # Categories, ratio thresholds & reset controls
-├── components/
-│   ├── Layout.tsx                 # Navigation bar and global responsive structure
-│   └── Modal.tsx                  # Focus-locked dialogs with custom blurred overlays
-├── utils/
-│   ├── dateUtils.ts               # Date calculation utilities (daily/weekly keys)
-│   └── habitLogic.ts              # Core state formulas for completion metrics
-└── types.ts                       # Strong TypeScript schemas for habits & period logs
-```
-
-### Dual-Layer Storage Support
-Dailio is architected to operate in two environments:
-1. **Cloud Mode**: Dynamically connects to **Firebase Auth** and **Firestore** to provide cross-device synchronization and secure real-time data persistence.
-2. **Offline Mode**: Gracefully falls back to high-speed **Local Storage** if cloud credentials are not active, offering a private, local-only developer environment.
-
----
-
-## 🚀 Getting Started
-
-### 📦 Prerequisites
-- Node.js (version 18 or higher is recommended)
-- npm or yarn
-
-### ⚙️ Installation & Running
-1. Clone or extract the repository.
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Boot the local development server:
-   ```bash
-   npm run dev
-   ```
-   *The dev server will spin up on port 3000.*
-
-4. Build for production:
-   ```bash
-   npm run build
-   ```
-   *The static build files will output in the `/dist` directory.*
-
----
-
-## 🛠️ Built With
-- **Vite** — High-speed bundler & dev runner.
-- **React** — Declarative UI composition.
-- **Tailwind CSS** — Modern, utility-first UI styling.
-- **Lucide React** — Minimalist stroke vector icons.
-- **Motion** — High-fidelity layout and transition animations.
-
-## Validation
+Environnement de référence : Node.js 24 et npm. Exécuter les commandes depuis ce dépôt.
 
 ```bash
-npm run lint
-npm test
-npm run build
+npm ci
+npm run dev
 ```
 
-The homepage loads current habits before historical emphasis. Calendar, statistics, and settings load on demand. History tests cover completion rules, absences, and daily/weekly range loading.
+Le serveur de développement écoute sur le port 3000. Ouvrir `http://localhost:3000`.
 
+## Configuration et données
+
+Sans `VITE_FIREBASE_API_KEY`, Dailio utilise les fournisseurs locaux. La fenêtre de connexion reste nécessaire : elle accepte un email ou un nom d’utilisateur en mode local, et le mot de passe n’y est pas vérifié. La présence de cette variable active le fournisseur Firebase ; renseigner alors toute la configuration.
+
+Le mode local conserve ses données dans le `localStorage` du navigateur, sans synchronisation entre appareils. Sa session de développement n’est pas une authentification distante. Changer de mode de stockage ne transfère pas automatiquement ces données.
+
+Pour utiliser Firebase, copier [.env.example](.env.example) vers `.env.local` et renseigner la configuration de l’application web :
+
+```dotenv
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+```
+
+Activer l’authentification email/mot de passe et Firestore dans le projet Firebase concerné. Ces variables sont lues par Vite au démarrage et lors du build : redémarrer le serveur ou reconstruire après une modification. Conserver les fichiers d’environnement locaux hors Git.
+
+## Commandes et validation
+
+| Commande | Rôle |
+| --- | --- |
+| `npm ci` | Installer les versions du lockfile, y compris l’archive UI locale |
+| `npm run dev` | Lancer le serveur de développement sur le port 3000 |
+| `npm run lint` | Vérifier les types avec `tsc --noEmit` |
+| `npm run check:ui` | Vérifier l’archive UI, son empreinte, le lockfile et les réexports |
+| `npm run build` | Exécuter `prebuild` puis générer le site statique dans `dist/` |
+| `npm run preview` | Prévisualiser le dernier build localement |
+
+`npm test` vérifie les règles de complétion et d’absence ainsi que les lectures historiques par plage de jours et de semaines.
+
+## Périodes et chargement
+
+Une période passée sans données saisies est considérée absente automatiquement ; un choix explicite d’absence ou de présence est prioritaire. Les anti-tâches sont considérées accomplies tant que leur comportement à éviter n’est pas signalé.
+
+L’accueil charge les habitudes courantes avant l’accentuation issue de l’historique. Les lectures historiques sont regroupées par plage de périodes. Le calendrier, les statistiques et les paramètres sont chargés à la demande.
 
 ## Interface partagée
 
-L'application utilise le package privé versionné `@3gaspo/app-ui` pour ses composants, styles et formats communs. Son archive est incluse dans `vendor` : `npm ci` et `npm run build` fonctionnent avec ce dépôt seul.
+L’application utilise `@3gaspo/app-ui`, actuellement en version 0.1.5, pour la navigation, les titres, dialogues, formulaires, commandes, retours d’état et formats visibles. L’interface utilise Inter et des thèmes clair et sombre communs. Les dates affichées utilisent `en-GB` et les heures le format 24 h ; les formats de stockage et d’export restent propres à l’application.
 
-`npm run check:ui` vérifie l'archive, le lockfile, les sources installées et les points d'entrée communs. Ce contrôle s'exécute aussi avant le build. Les sources du socle sont maintenues dans le dépôt indépendant `app-ui` ; les données, calculs, parcours et styles métier restent ici. Les formats de stockage et d'export ne sont pas modifiés par les conventions d'affichage.
+L’archive est incluse dans [vendor/](vendor/) et référencée par `package.json` et `package-lock.json`. Ce dépôt est installable et déployable seul : aucun accès au dépôt source voisin `app-ui` ni à un registre privé n’est nécessaire. Relancer `npm ci` après un pull qui change les dépendances. La vérification du package partagé s’exécute automatiquement avant le build.
+
+## Déploiement
+
+Le site statique est servi par Firebase Hosting depuis `dist/`. [firebase.json](firebase.json) redirige les routes de l’application vers `index.html` et déclare aussi les règles et index Firestore.
+
+Après avoir authentifié la CLI Firebase et sélectionné le bon projet :
+
+```bash
+git pull
+npm ci
+npm run build
+firebase deploy --only hosting
+```
+
+Ajouter `--project ID_DU_PROJET` si aucun projet n’est sélectionné. Un `firebase deploy` sans restriction peut aussi publier les règles et index Firestore déclarés. Un retour à une version conservée dans l’historique Firebase Hosting restaure le site, pas les données.
