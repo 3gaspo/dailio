@@ -296,6 +296,14 @@ export async function getUncompletedHabitsFromPreviousPeriod(
   if (relevantHabits.length === 0) return new Set();
 
   const maxLookback = periodicity === 'daily' ? 60 : 52;
+  const keyAt = (offset: number) => periodicity === 'daily'
+    ? getDailyKey(subDays(currentDate, offset))
+    : getWeeklyKey(subWeeks(currentDate, offset));
+  const keys = Array.from({ length: maxLookback }, (_, index) => keyAt(index + 1));
+  const sortedKeys = [...keys].sort();
+  const periodDocs = data.getPeriodDocs
+    ? await data.getPeriodDocs(uid, periodicity, sortedKeys[0], sortedKeys[sortedKeys.length - 1])
+    : null;
 
   for (let i = 1; i <= maxLookback; i++) {
     const cursor = periodicity === 'daily' 
@@ -304,7 +312,7 @@ export async function getUncompletedHabitsFromPreviousPeriod(
 
     const key = periodicity === 'daily' ? getDailyKey(cursor) : getWeeklyKey(cursor);
 
-    const doc = await data.getPeriodDoc(uid, periodicity, key);
+    const doc = periodDocs ? periodDocs[key] ?? null : await data.getPeriodDoc(uid, periodicity, key);
 
     // If marked absent, skip and continue searching backwards for a non-absent period
     if (isPeriodAbsent(doc, key, periodicity, currentDate)) {

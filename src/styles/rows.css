@@ -1,0 +1,60 @@
+/* Stable slots: completion, name, category, actions. */
+.habit-card { container-type: inline-size; padding: 8px; }
+.habit-grid { display: grid; grid-template-columns: 32px minmax(0, 1fr) 80px 48px; gap: 8px; align-items: center; min-width: 0; }
+.habit-grid[data-managing="true"] { grid-template-columns: 32px minmax(0, 1fr) 80px; }
+.habit-control { display: flex; align-items: center; justify-content: center; min-height: 44px; }
+.habit-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; min-width: 0; font-size: 16px; line-height: 22px; }
+.habit-category-cell { display: flex; align-items: center; justify-content: flex-end; min-width: 0; }
+.habit-category { display: inline-block; vertical-align: middle; box-sizing: border-box; max-width: 100%; padding: 4px 6px; border-radius: 6px; font-size: 9px; line-height: 14px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.habit-actions { display: flex; align-items: center; justify-content: flex-end; width: 48px; }
+.habit-actions .ui-row-action, .task-group-actions .ui-row-action { width: 24px; padding: 4px; }
+.habit-secondary { display: flex; align-items: center; gap: 8px; min-width: 0; margin-top: 4px; padding-inline-start: 40px; }
+.habit-steps { align-items: flex-start; margin-bottom: 4px; }
+.habit-step-count { width: 28px; flex: none; line-height: 24px; }
+.habit-step-buttons { display: flex; flex: 1; min-width: 0; flex-wrap: wrap; gap: 6px; }
+.habit-weekly-count { display: flex; align-items: center; gap: 6px; }
+.habit-count-button { display: flex; align-items: center; justify-content: center; width: 32px; height: 28px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+.task-group-header { display: grid; grid-template-columns: 32px minmax(0,1fr) 48px; align-items: center; gap: 8px; padding: 8px; container-type: inline-size; }
+.task-group-title { grid-column: 2; min-width: 0; gap: 6px; }
+.task-group-title:has(input) { grid-column: 2 / -1; }
+.task-group-actions { grid-column: 3; width: 48px; justify-content: flex-end; }
+.task-group-title > input { width: 100%; min-width: 0; }
+.task-group-title > span:first-of-type { min-width: 0; flex: 1; }
+.task-group-children { margin: 8px 0 8px 8px; padding: 4px 4px 4px 8px; }
+.calendar-task-main { display: grid; grid-template-columns: 28px minmax(0,1fr) 32px 32px; column-gap: 4px; align-items: center; }
+.calendar-task-main > span { min-width: 0; margin-left: 0; white-space: normal; overflow-wrap: anywhere; }
+.calendar-task-main > button:first-child { grid-column: 1; grid-row: 1; }
+.calendar-task-main > span { grid-column: 2; grid-row: 1; }
+.calendar-task-main > div { grid-column: 2 / -1; grid-row: 2; margin: 4px 0 0; }
+.calendar-task-main > button:nth-last-child(2) { grid-column: 3; grid-row: 1; }
+.calendar-task-main > button:last-child { grid-column: 4; grid-row: 1; }
+.calendar-task-steps { margin-left: 32px; }
+.calendar-task-steps > button { width: 24px; height: 24px; flex: none; }
+@container (max-width: 300px) {
+  .habit-grid { grid-template-columns: 32px minmax(0,1fr) 72px 48px; gap: 4px; }
+  .habit-grid[data-managing="true"] { grid-template-columns: 32px minmax(0,1fr) 72px; }
+  .habit-name { font-size: 14px; line-height: 20px; }
+  .habit-secondary { padding-inline-start: 36px; }
+  .task-group-folder { display: none; }
+}
+@container (max-width: 240px) {
+  .habit-grid { grid-template-columns: 32px minmax(0,1fr) 48px; row-gap: 0; }
+  .habit-name { grid-column: 2; grid-row: 1; }
+  .habit-category-cell { grid-column: 2; grid-row: 2; justify-content: flex-start; margin-top: 2px; }
+  .habit-control { grid-row: 1 / 3; }
+  .habit-actions { grid-column: 3; grid-row: 1 / 3; }
+  .habit-grid[data-managing="true"] { grid-template-columns: 32px minmax(0,1fr); }
+}
+
+/* Keep compact visual checks, with taller, separated tap targets. */
+.habit-control button, .task-group-header > button, .calendar-task-main > button:first-child { position: relative; }
+.habit-control button::after, .task-group-header > button::after, .calendar-task-main > button:first-child::after { content: ''; position: absolute; inset: -6px; }
+.habit-count-button { height: 44px; }
+.habit-step-count { line-height: 44px; }
+.habit-step-buttons > button, .calendar-task-steps > button { width: 32px; height: 44px; position: relative; border: 0; background: transparent; }
+.habit-step-buttons > button::before, .calendar-task-steps > button::before { content: ''; position: absolute; width: 24px; height: 24px; border: 2px solid color-mix(in srgb, var(--ui-ink) 20%, transparent); border-radius: 8px; }
+.habit-step-buttons > button[aria-pressed="true"]::before, .calendar-task-steps > button[aria-pressed="true"]::before { background: var(--ui-primary); border-color: var(--ui-ink); }
+.habit-step-buttons > button > svg, .calendar-task-steps > button > svg { position: relative; }
+.calendar-task-main > div button { min-height: 44px; min-width: 32px; }
+
+.calendar-task-main > button:first-child::after { inset: -8px; }

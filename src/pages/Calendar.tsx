@@ -1,3 +1,8 @@
+import { ActionButton } from '@3gaspo/app-ui/ActionButton';
+import { formatDate, formatMonth } from '@3gaspo/app-ui/formats';
+import { ValidatedForm } from '../components/ValidatedForm';
+import { CalendarHeader } from '../components/CalendarHeader';
+import { StateFeedback } from '../components/StateFeedback';
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../providers/AppProvider';
 import { getDailyKey, getWeeklyKey } from '../utils/dateUtils';
@@ -295,9 +300,9 @@ export const CalendarPage: React.FC = () => {
     const days = eachDayOfInterval({ start, end });
 
     return (
-      <div className="grid grid-cols-7 gap-2">
+      <div className="ui-calendar-grid">
         {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-          <div key={`${d}-${i}`} className="text-center text-[10px] font-bold text-black/20 dark:text-white/20 py-2">{d}</div>
+          <div key={`${d}-${i}`} className="ui-calendar-weekday">{d}</div>
         ))}
         {days.map(d => {
           const key = getDailyKey(d);
@@ -311,9 +316,9 @@ export const CalendarPage: React.FC = () => {
           const objectiveMet = stats.to_do > 0 && stats.ratio >= settings.dailyObjective;
           const isAbsent = stats.isAbsent;
 
-          let cellColor = "bg-black/5 dark:bg-white/5 text-black/40 dark:text-white/40";
+          let cellColor = "bg-ui-section text-ui-ink/40";
           if (isAbsent) {
-            cellColor = "bg-black/5 dark:bg-white/5 text-black/40 dark:text-white/40";
+            cellColor = "bg-ui-section text-ui-ink/40";
           } else if (isDone) {
             if (isPast || isToday) cellColor = "bg-emerald-500 text-white";
           } else if (isIncomplete) {
@@ -325,21 +330,21 @@ export const CalendarPage: React.FC = () => {
           }
 
           return (
-            <button
+            <ActionButton scope="dailio-calendar"
               key={key}
               onClick={() => setSelectedPeriod({ key, date: d })}
+              data-date={key} title={formatDate(d, 'long')} aria-current={isToday ? 'date' : undefined} aria-pressed={selectedPeriod?.key === key}
               className={cn(
-                "aspect-square rounded-xl flex flex-col items-center justify-center transition-all relative",
+                "ui-calendar-day transition-colors",
                 !isCurrentMonth && "opacity-20",
-                cellColor,
-                isToday && !isDone && "ring-2 ring-black dark:ring-white ring-inset"
+                cellColor
               )}
             >
               <span className="text-sm font-bold">{format(d, 'd')}</span>
               {stats.to_do > 0 && !isDone && !isAbsent && (
-                <div className="absolute bottom-1.5 w-1 h-1 bg-black/20 dark:bg-white/20 rounded-full" />
+                <div className="absolute bottom-1.5 w-1 h-1 bg-ui-ink/20 rounded-full" />
               )}
-            </button>
+            </ActionButton>
           );
         })}
       </div>
@@ -352,7 +357,7 @@ export const CalendarPage: React.FC = () => {
     const weeks = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
 
     return (
-      <div className="grid grid-cols-5 gap-2">
+      <div className="ui-calendar-weeks">
         {weeks.map(w => {
           const key = getWeeklyKey(w);
           const stats = computePeriodStats(key, 'weekly', habits, periodDocs[key] || null);
@@ -365,9 +370,9 @@ export const CalendarPage: React.FC = () => {
           const isAbsent = stats.isAbsent;
           const weekNum = getISOWeek(w);
 
-          let cellColor = "bg-black/5 dark:bg-white/5 text-black/40 dark:text-white/40";
+          let cellColor = "bg-ui-section text-ui-ink/40";
           if (isAbsent) {
-            cellColor = "bg-black/5 dark:bg-white/5 text-black/40 dark:text-white/40";
+            cellColor = "bg-ui-section text-ui-ink/40";
           } else if (isDone) {
             if (isPastWeek || isCurrentWeek) cellColor = "bg-emerald-500 text-white";
           } else if (isIncomplete) {
@@ -379,20 +384,21 @@ export const CalendarPage: React.FC = () => {
           }
 
           return (
-            <button
+            <ActionButton scope="dailio-calendar"
               key={key}
               onClick={() => setSelectedPeriod({ key, date: w })}
+              title={'Week ' + weekNum + ', ' + getYear(w)} aria-current={isCurrentWeek ? 'date' : undefined} aria-pressed={selectedPeriod?.key === key}
               className={cn(
-                "aspect-square rounded-xl flex flex-col items-center justify-center transition-all relative",
+                "ui-calendar-day transition-colors",
                 cellColor
               )}
             >
               <span className="text-[10px] font-bold opacity-40 mb-0.5">W</span>
               <span className="text-sm font-bold">{weekNum}</span>
               {stats.to_do > 0 && !isDone && !isAbsent && (
-                <div className="absolute bottom-1.5 w-1 h-1 bg-black/20 dark:bg-white/20 rounded-full" />
+                <div className="absolute bottom-1.5 w-1 h-1 bg-ui-ink/20 rounded-full" />
               )}
-            </button>
+            </ActionButton>
           );
         })}
       </div>
@@ -404,180 +410,159 @@ export const CalendarPage: React.FC = () => {
       <header className="mb-12">
         <h1 className="text-4xl font-bold tracking-tight mb-8 dark:text-white">Calendar</h1>
         
-        <div className="flex items-center justify-between bg-black/5 dark:bg-white/5 p-1 rounded-2xl mb-8">
-          <button
+        <div className="ui-segments flex items-center justify-between bg-ui-section p-1 rounded-2xl mb-8">
+          <ActionButton scope="dailio-calendar" type="button" aria-pressed={view === 'daily'}
             onClick={() => setView('daily')}
-            className={cn(
-              "flex-1 py-3 rounded-xl font-bold transition-all",
-              view === 'daily' ? "bg-white dark:bg-white/10 shadow-sm text-black dark:text-white" : "text-black/30 dark:text-white/30"
-            )}
+            className="ui-option"
           >
             Daily
-          </button>
-          <button
+          </ActionButton>
+          <ActionButton scope="dailio-calendar" type="button" aria-pressed={view === 'weekly'}
             onClick={() => setView('weekly')}
-            className={cn(
-              "flex-1 py-3 rounded-xl font-bold transition-all",
-              view === 'weekly' ? "bg-white dark:bg-white/10 shadow-sm text-black dark:text-white" : "text-black/30 dark:text-white/30"
-            )}
+            className="ui-option"
           >
             Weekly
-          </button>
+          </ActionButton>
         </div>
 
-        {view === 'daily' && (
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold dark:text-white">{format(currentMonth, 'MMMM yyyy')}</h2>
-            <div className="flex gap-2">
-              <button onClick={() => setCurrentMonth(new Date())} className="px-4 py-2 bg-black/5 dark:bg-white/5 dark:text-white rounded-xl text-xs font-bold uppercase tracking-wider">Today</button>
-              <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-2 bg-black/5 dark:bg-white/5 dark:text-white rounded-xl"><ChevronLeft size={20} /></button>
-              <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-2 bg-black/5 dark:bg-white/5 dark:text-white rounded-xl"><ChevronRight size={20} /></button>
-            </div>
-          </div>
-        )}
+
       </header>
 
-      {loading ? <div className="text-center py-20 font-bold text-black/20 dark:text-white/20">Loading...</div> : (
+      {loading ? <StateFeedback kind="loading" /> : (
         !user ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <h1 className="text-2xl font-bold mb-4 dark:text-white">Calendar</h1>
-            <p className="text-black/40 dark:text-white/40 mb-8">Please sign in to view your calendar.</p>
-            <button 
+            <p className="text-ui-ink/40 mb-8">Please sign in to view your calendar.</p>
+            <ActionButton scope="dailio-calendar"
               onClick={() => window.location.href = '/settings'}
-              className="px-8 py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-bold shadow-lg"
+              className="ui-button ui-button-primary px-8 py-4 bg-ui-primary text-ui-primary-text rounded-2xl font-bold shadow-lg"
             >
               Go to Settings
-            </button>
+            </ActionButton>
           </div>
         ) : (
-          view === 'daily' ? renderDaily() : renderWeekly()
+          view === 'daily' ? <div className="ui-calendar-card">
+            <CalendarHeader title={formatMonth(currentMonth)} onPrevious={() => setCurrentMonth(subMonths(currentMonth, 1))} onNext={() => setCurrentMonth(addMonths(currentMonth, 1))} onToday={() => setCurrentMonth(new Date())} />
+            {renderDaily()}
+          </div> : <div className="ui-calendar-card">{renderWeekly()}</div>
         )
       )}
 
       <Modal
         isOpen={!!selectedPeriod}
         onClose={() => setSelectedPeriod(null)}
-        title={selectedPeriod ? (view === 'daily' ? format(selectedPeriod.date, 'MMMM d, yyyy') : `Week ${getISOWeek(selectedPeriod.date)}, ${getYear(selectedPeriod.date)}`) : ''}
+        title={selectedPeriod ? (view === 'daily' ? formatDate(selectedPeriod.date, 'long') : `Week ${getISOWeek(selectedPeriod.date)}, ${getYear(selectedPeriod.date)}`) : ''}
       >
         {selectedPeriod && (() => {
           const stats = computePeriodStats(selectedPeriod.key, view, habits, periodDocs[selectedPeriod.key] || null);
           return (
-            <div className="space-y-8">
-              <div className="flex items-center justify-between p-4 bg-black/5 dark:bg-white/5 rounded-2xl">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 bg-ui-section rounded-2xl">
                 <p className="font-bold dark:text-white">Absent</p>
-                <button
-                  onClick={handleToggleAbsent}
-                  className={cn(
-                    "w-12 h-6 rounded-full transition-all relative",
-                    stats.isAbsent ? "bg-black dark:bg-white" : "bg-black/10 dark:bg-white/10"
-                  )}
-                >
-                  <div className={cn(
-                    "absolute top-1 w-4 h-4 rounded-full bg-white dark:bg-black transition-all",
-                    stats.isAbsent ? "left-7" : "left-1"
-                  )} />
-                </button>
+                <ActionButton scope="dailio-calendar" onClick={handleToggleAbsent} role="switch" aria-label="Absent" aria-checked={stats.isAbsent} className="ui-switch-control">
+                  <span className="ui-switch-track" data-checked={stats.isAbsent} aria-hidden="true"><span className="ui-switch-thumb" /></span>
+                </ActionButton>
               </div>
 
               <div className="space-y-3">
                 {stats.habits.map(h => (
-                  <div key={h.id} className="flex flex-col bg-black/5 dark:bg-white/5 p-3 rounded-2xl">
-                    <div className="flex items-center">
-                      <button
-                        onClick={() => handleToggle(h.id, h.completed)}
+                  <div key={h.id} className="flex flex-col bg-ui-section p-3 rounded-2xl">
+                    <div className="calendar-task-main">
+                      <ActionButton scope="dailio-calendar"
+                        aria-label={`Complete ${h.name}`} aria-pressed={h.completed} onClick={() => handleToggle(h.id, h.completed)}
                         disabled={stats.isAbsent}
                         className={cn(
                           "w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all",
                           h.completed 
-                            ? "bg-black dark:bg-white border-black dark:border-white text-white dark:text-black" 
-                            : "border-black/10 dark:border-white/10 text-transparent",
+                            ? "bg-ui-primary border-black dark:border-white text-ui-primary-text"
+                            : "border-ui-ink/10 text-transparent",
                           stats.isAbsent && "opacity-20 cursor-not-allowed"
                         )}
                       >
                         <Check size={14} strokeWidth={4} />
-                      </button>
-                      <span className={cn("flex-1 min-w-0 ml-3 font-medium dark:text-white truncate", (h.completed || stats.isAbsent) && "text-black/30 dark:text-white/30 line-through")}>{h.name}</span>
+                      </ActionButton>
+                      <span className={cn("flex-1 min-w-0 ml-3 font-medium dark:text-white truncate", (h.completed || stats.isAbsent) && "text-ui-ink/30 line-through")}>{h.name}</span>
                       
                       {view === 'weekly' && h.completed && (h.multiplicity <= 1 || !h.multiplicity) && !h.isAntiTask && (
                         <div className="flex items-center gap-1 shrink-0 mr-1">
                           {h.subDone > 1 && (
                             <div className="flex items-center gap-0.5">
-                              <button
+                              <ActionButton scope="dailio-calendar"
                                 onClick={() => handleDecrementWeekly(h.id)}
                                 disabled={stats.isAbsent}
-                                className="w-5 h-5 rounded-md bg-black/5 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/20 text-black/60 dark:text-white/60 flex items-center justify-center text-xs font-black transition-all disabled:opacity-20"
+                                className="w-5 h-5 rounded-md bg-ui-section hover:bg-black/15 dark:hover:bg-white/20 text-ui-ink/60 flex items-center justify-center text-xs font-black transition-all disabled:opacity-20"
                                 title="Decrease count (-1)"
                               >
                                 -
-                              </button>
+                              </ActionButton>
                               <span className="px-1.5 py-0.5 rounded-md text-xs font-black bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
                                 ×{h.subDone}
                               </span>
                             </div>
                           )}
-                          <button
+                          <ActionButton scope="dailio-calendar"
                             onClick={() => handleIncrementWeekly(h.id)}
                             disabled={stats.isAbsent}
-                            className="px-2 py-0.5 text-xs font-black rounded-lg bg-black dark:bg-white text-white dark:text-black hover:opacity-90 active:scale-95 transition-all shadow-xs border border-transparent disabled:opacity-20"
+                            className="ui-button ui-button-primary px-2 py-0.5 text-xs font-black rounded-lg bg-ui-primary text-ui-primary-text hover:opacity-90 transition-all shadow-xs border border-transparent disabled:opacity-20"
                             title="Add weekly completion (+1 point)"
                           >
                             +1
-                          </button>
+                          </ActionButton>
                         </div>
                       )}
 
-                      <button
+                      <ActionButton scope="dailio-calendar"
                         onClick={() => handleOpenEdit(h)}
                         disabled={stats.isAbsent}
-                        className={cn("p-2 text-black/20 dark:text-white/20 hover:text-black dark:hover:text-white transition-colors", stats.isAbsent && "opacity-20 cursor-not-allowed")}
-                        title="Edit task"
+                        className={"ui-icon-button ui-row-action " + (cn("text-ui-ink/60 hover:text-black dark:hover:text-white transition-colors", stats.isAbsent && "opacity-20 cursor-not-allowed"))}
+                        title={h.isOneOff ? "Edit task" : "Edit habit"}
                       >
                         <Pencil size={16} />
-                      </button>
-                      <button
+                      </ActionButton>
+                      <ActionButton scope="dailio-calendar"
                         onClick={() => h.isOneOff ? handleDeleteOneOff(h.id) : handleSkip(h.id)}
                         disabled={stats.isAbsent}
-                        className={cn("p-2 text-black/20 dark:text-white/20 hover:text-red-500 transition-colors", stats.isAbsent && "opacity-20 cursor-not-allowed")}
+                        className={"ui-icon-button ui-row-action " + (cn("text-ui-ink/60 hover:text-red-500 transition-colors", stats.isAbsent && "opacity-20 cursor-not-allowed"))}
                         title={h.isOneOff ? "Delete task" : "Skip task"}
                       >
                         <Trash2 size={17} />
-                      </button>
+                      </ActionButton>
                     </div>
 
                     {h.multiplicity > 1 && (
-                      <div className="flex gap-1.5 ml-[40px] mt-2">
+                      <div className="calendar-task-steps flex flex-wrap gap-1.5 mt-2">
                         {Array.from({ length: h.multiplicity }).map((_, idx) => (
-                          <button
+                          <ActionButton scope="dailio-calendar"
                             key={idx}
                             type="button"
                             disabled={stats.isAbsent}
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleSubToggle(h.id, idx);
+                              return handleSubToggle(h.id, idx);
                             }}
                             className={cn(
-                              "w-6 h-6 rounded-lg border-2 transition-all flex items-center justify-center cursor-pointer active:scale-90",
+                              "w-6 h-6 rounded-lg border-2 transition-all flex items-center justify-center cursor-pointer ",
                               idx < h.subDone
-                                ? "bg-black dark:bg-white border-black dark:border-white text-white dark:text-black shadow-xs"
-                                : "border-black/20 dark:border-white/20 text-transparent hover:border-black/40 dark:hover:border-white/40",
+                                ? "bg-ui-primary border-black dark:border-white text-ui-primary-text shadow-xs"
+                                : "border-ui-ink/20 text-transparent hover:border-black/40 dark:hover:border-white/40",
                               stats.isAbsent && "opacity-20 cursor-not-allowed"
                             )}
                             title={`Step ${idx + 1} of ${h.multiplicity}`}
-                            aria-label={`Step ${idx + 1} of ${h.multiplicity}`}
+                            aria-label={`Step ${idx + 1} of ${h.multiplicity}`} aria-pressed={idx < h.subDone}
                           >
                             <Check size={13} strokeWidth={3.5} />
-                          </button>
+                          </ActionButton>
                         ))}
                       </div>
                     )}
                   </div>
                 ))}
                 {stats.habits.length === 0 && (
-                  <p className="text-center text-black/20 dark:text-white/20 py-4 italic">No habits for this period</p>
+                  <p className="text-center text-ui-ink/20 py-4 italic">No habits for this period</p>
                 )}
               </div>
 
-              <form onSubmit={handleAddOneOff} className="pt-6 border-t border-black/5 dark:border-white/5">
+              <ValidatedForm onSubmit={handleAddOneOff} className="pt-6 border-t border-ui-border">
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -585,17 +570,17 @@ export const CalendarPage: React.FC = () => {
                     onChange={e => setNewOneOffName(e.target.value)}
                     disabled={stats.isAbsent}
                     placeholder="Add one-off habit..."
-                    className="flex-1 bg-black/5 dark:bg-white/5 rounded-xl px-4 py-3 outline-none focus:ring-2 ring-black/10 dark:ring-white/10 dark:text-white transition-all font-medium disabled:opacity-50"
+                    className="ui-field flex-1 bg-ui-section rounded-xl px-4 py-3 outline-none focus:ring-2 ring-ui-ink/10 dark:text-white transition-all font-medium disabled:opacity-50"
                   />
-                  <button 
+                  <ActionButton scope="dailio-calendar" aria-label="Add"
                     type="submit" 
                     disabled={stats.isAbsent}
-                    className="bg-black dark:bg-white text-white dark:text-black p-3 rounded-xl shadow-lg active:scale-95 transition-transform disabled:opacity-50"
+                    className="ui-icon-button bg-ui-primary text-ui-primary-text p-3 rounded-xl shadow-lg transition-transform disabled:opacity-50"
                   >
                     <Plus size={24} />
-                  </button>
+                  </ActionButton>
                 </div>
-              </form>
+              </ValidatedForm>
             </div>
           );
         })()}

@@ -1,3 +1,8 @@
+import { formatPercent } from '@3gaspo/app-ui/formats';
+import { ValidatedForm } from '../components/ValidatedForm';
+import { SettingsSwitch } from '../components/SettingsSwitch';
+import { PageHeader } from '../components/PageHeader';
+import { DialogActions } from '../components/Dialog';
 import React, { useState } from 'react';
 import { useApp } from '../providers/AppProvider';
 import { motion } from 'motion/react';
@@ -7,11 +12,12 @@ import { computePeriodStats } from '../utils/habitLogic';
 import { startOfYear, eachDayOfInterval } from 'date-fns';
 import { Modal } from '../components/Modal';
 import { ResetOption } from '../types';
-import { getCategoryColor, getContrastColor, getCategoryDefaultColor, hslToHex, hexToHue } from '../utils/categoryUtils';
+import { getCategoryColor, getContrastColor, getCategoryDefaultColor } from '../utils/categoryUtils';
+import { CategoryColorPicker } from '../components/CategoryColorPicker';
 import pkg from '../../package.json';
 
 export const SettingsPage: React.FC = () => {
-  const { auth, data, user, isDevMode, categories, refreshCategories, settings, updateSettings } = useApp();
+  const { auth, data, user, isDevMode, categories, refreshCategories, settings, updateSettings, settingsError } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -20,8 +26,7 @@ export const SettingsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [categoryHues, setCategoryHues] = useState<Record<string, number>>({});
-  const [categoryTempColors, setCategoryTempColors] = useState<Record<string, string>>({});
+  const [newCategoryColor, setNewCategoryColor] = useState<string | undefined>();
 
   const [localDailyObj, setLocalDailyObj] = useState(settings.dailyObjective);
   const [localWeeklyObj, setLocalWeeklyObj] = useState(settings.weeklyObjective);
@@ -46,9 +51,10 @@ export const SettingsPage: React.FC = () => {
     if (!user || !newCategoryName.trim()) return;
     setLoading(true);
     try {
-      const color = getCategoryDefaultColor(newCategoryName.trim());
+      const color = newCategoryColor || getCategoryDefaultColor(newCategoryName.trim());
       await data.addCategory(user.uid, newCategoryName.trim(), color);
       setNewCategoryName('');
+      setNewCategoryColor(undefined);
       await refreshCategories();
     } catch (err: any) {
       setError(err.message);
@@ -157,184 +163,135 @@ export const SettingsPage: React.FC = () => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-      <header className="mb-12">
-        <h1 className="text-4xl font-bold tracking-tight mb-2">Settings</h1>
-        {isDevMode && <p className="text-emerald-500 text-[10px] font-bold uppercase tracking-widest">Dev mode</p>}
-      </header>
+      <PageHeader title="Settings" devMode={isDevMode} />
+      {settingsError && <p role="alert" className="ui-error text-red-600 text-sm mb-4">{settingsError}</p>}
 
       <div className="space-y-4">
-        <section className="bg-black/5 dark:bg-white/5 p-8 rounded-[32px] mb-8">
-            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black/30 dark:text-white/30 mb-6">Appearance</h2>
-            <div className="flex items-center justify-between bg-white dark:bg-black/20 p-4 rounded-2xl shadow-sm">
+        <section className="ui-section-card bg-ui-section p-8 rounded-[32px] mb-8">
+            <h2 className="ui-section-title text-xs font-bold uppercase tracking-[0.2em] text-ui-ink/30 mb-6">Appearance</h2>
+            <div className="ui-setting-row ui-item-card flex items-center justify-between bg-ui-surface p-4 rounded-2xl shadow-sm">
               <span className="font-bold dark:text-white">Dark Mode</span>
-              <button
-                onClick={() => updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })}
-                className={cn(
-                  "w-12 h-6 rounded-full transition-all relative",
-                  settings.theme === 'dark' ? "bg-emerald-500" : "bg-black/10"
-                )}
-              >
-                <div className={cn(
-                  "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
-                  settings.theme === 'dark' ? "left-7" : "left-1"
-                )} />
-              </button>
+              <SettingsSwitch checked={settings.theme === 'dark'} onClick={() => updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })} label="Dark Mode" />
             </div>
           </section>
 
-          <section className="bg-black/5 dark:bg-white/5 p-8 rounded-[32px] mb-8">
-            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black/30 dark:text-white/30 mb-6">Objectives</h2>
-            <div className="space-y-8">
-              <div className="space-y-4">
+          <section className="ui-section-card bg-ui-section p-8 rounded-[32px] mb-8">
+            <h2 className="ui-section-title text-xs font-bold uppercase tracking-[0.2em] text-ui-ink/30 mb-6">Objectives</h2>
+            <div className="space-y-6">
+              <div className="ui-setting-slider space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="font-bold dark:text-white">Daily Objective</span>
-                  <span className="text-xl font-black dark:text-white">{Math.round(localDailyObj * 100)}%</span>
+                  <span className="text-xl font-black dark:text-white">{formatPercent(localDailyObj)}</span>
                 </div>
                 <input 
                   type="range" 
                   min="0" 
                   max="1" 
                   step="0.05" 
+                  aria-label="Daily Objective"
                   value={localDailyObj}
                   onChange={(e) => setLocalDailyObj(parseFloat(e.target.value))}
+                  onKeyUp={(e) => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key)) handleUpdateObjective('daily', parseFloat(e.currentTarget.value)); }}
                   onMouseUp={(e) => handleUpdateObjective('daily', parseFloat((e.target as HTMLInputElement).value))}
                   onTouchEnd={(e) => handleUpdateObjective('daily', parseFloat((e.target as HTMLInputElement).value))}
-                  className="w-full h-2 bg-black/10 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-black dark:accent-white"
+                  className="w-full h-2 bg-ui-ink/10 rounded-lg appearance-none cursor-pointer accent-black dark:accent-white"
                 />
               </div>
 
-              <div className="space-y-4">
+              <div className="ui-setting-slider space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="font-bold dark:text-white">Weekly Objective</span>
-                  <span className="text-xl font-black dark:text-white">{Math.round(localWeeklyObj * 100)}%</span>
+                  <span className="text-xl font-black dark:text-white">{formatPercent(localWeeklyObj)}</span>
                 </div>
                 <input 
                   type="range" 
                   min="0" 
                   max="1" 
                   step="0.05" 
+                  aria-label="Weekly Objective"
                   value={localWeeklyObj}
                   onChange={(e) => setLocalWeeklyObj(parseFloat(e.target.value))}
+                  onKeyUp={(e) => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key)) handleUpdateObjective('weekly', parseFloat(e.currentTarget.value)); }}
                   onMouseUp={(e) => handleUpdateObjective('weekly', parseFloat((e.target as HTMLInputElement).value))}
                   onTouchEnd={(e) => handleUpdateObjective('weekly', parseFloat((e.target as HTMLInputElement).value))}
-                  className="w-full h-2 bg-black/10 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-black dark:accent-white"
+                  className="w-full h-2 bg-ui-ink/10 rounded-lg appearance-none cursor-pointer accent-black dark:accent-white"
                 />
               </div>
             </div>
           </section>
 
-          <section className="bg-black/5 dark:bg-white/5 p-8 rounded-[32px] mb-8">
-            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black/30 dark:text-white/30 mb-6">Categories</h2>
+          <section className="ui-section-card bg-ui-section p-8 rounded-[32px] mb-8">
+            <h2 className="ui-section-title text-xs font-bold uppercase tracking-[0.2em] text-ui-ink/30 mb-6">Categories</h2>
             <div className="space-y-4 mb-6">
               {categories.map(cat => {
-                const savedColor = getCategoryColor(cat);
-                const currentColor = categoryTempColors[cat.id] || savedColor;
-                const currentHue = categoryHues[cat.id] !== undefined ? categoryHues[cat.id] : hexToHue(savedColor);
+                const currentColor = getCategoryColor(cat);
                 const textColor = getContrastColor(currentColor);
 
                 return (
-                  <div key={cat.id} className="bg-white dark:bg-black/20 p-4 rounded-2xl shadow-xs space-y-3">
-                    <div className="flex items-center justify-between">
+                  <div key={cat.id} className="ui-item-card bg-ui-surface p-4 rounded-2xl shadow-xs space-y-3">
+                    <div className="flex items-center justify-between gap-3">
                       <span 
-                        className="text-xs font-black uppercase tracking-[0.15em] px-3 py-1.5 rounded-lg shadow-xs transition-colors"
+                        className="min-w-0 truncate text-xs font-black uppercase tracking-[0.15em] px-3 py-1.5 rounded-lg shadow-xs transition-colors"
                         style={{ backgroundColor: currentColor, color: textColor }}
                       >
                         {cat.name}
                       </span>
 
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-mono font-bold text-black/40 dark:text-white/40 uppercase">
+                      <div className="flex items-center gap-2 shrink-0">
+                        <CategoryColorPicker size="sm" color={currentColor} label={`Color for ${cat.name}`} onChange={color => handleUpdateCategoryColor(cat.id, color)} />
+                        <span className="ui-section-title text-[11px] font-mono font-bold text-ui-ink/40 uppercase">
                           {currentColor}
                         </span>
                         <button 
                           type="button"
                           onClick={() => handleDeleteCategory(cat.id)}
-                          className="p-1.5 text-black/20 dark:text-white/20 hover:text-red-500 transition-colors rounded-lg hover:bg-black/5 dark:hover:bg-white/5"
+                          className="ui-icon-button p-1.5 text-ui-ink/20 hover:text-red-500 transition-colors rounded-lg hover:bg-black/5 dark:hover:bg-white/5"
                           title="Delete category"
                         >
                           <Trash2 size={16} />
                         </button>
                       </div>
                     </div>
-
-                    <div className="pt-0.5">
-                      <input
-                        type="range"
-                        min="0"
-                        max="360"
-                        value={currentHue}
-                        onChange={(e) => {
-                          const hue = parseInt(e.target.value);
-                          setCategoryHues(prev => ({ ...prev, [cat.id]: hue }));
-                          setCategoryTempColors(prev => ({ ...prev, [cat.id]: hslToHex(hue, 75, 55) }));
-                        }}
-                        onMouseUp={async (e) => {
-                          const hue = parseInt((e.target as HTMLInputElement).value);
-                          const hex = hslToHex(hue, 75, 55);
-                          setCategoryTempColors(prev => {
-                            const next = { ...prev };
-                            delete next[cat.id];
-                            return next;
-                          });
-                          await handleUpdateCategoryColor(cat.id, hex);
-                        }}
-                        onTouchEnd={async (e) => {
-                          const hue = parseInt((e.target as HTMLInputElement).value);
-                          const hex = hslToHex(hue, 75, 55);
-                          setCategoryTempColors(prev => {
-                            const next = { ...prev };
-                            delete next[cat.id];
-                            return next;
-                          });
-                          await handleUpdateCategoryColor(cat.id, hex);
-                        }}
-                        className="color-slider w-full cursor-pointer"
-                        style={{
-                          background: 'linear-gradient(to right, #ef4444, #f97316, #eab308, #22c55e, #14b8a6, #3b82f6, #6366f1, #a855f7, #ec4899, #ef4444)'
-                        }}
-                        title={`Adjust color for ${cat.name}`}
-                        aria-label={`Adjust color for ${cat.name}`}
-                      />
-                    </div>
                   </div>
                 );
               })}
               {categories.length === 0 && (
-                <p className="text-black/30 dark:text-white/30 text-sm italic">No categories created yet.</p>
+                <p className="ui-meta text-ui-ink/30 text-sm italic">No categories created yet.</p>
               )}
             </div>
 
-            <form onSubmit={handleAddCategory} className="space-y-3">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-black/40 dark:text-white/40 ml-1">
+            <ValidatedForm onSubmit={handleAddCategory} className="space-y-3">
+              <div className="ui-meta text-[10px] font-bold uppercase tracking-widest text-ui-ink/40 ml-1">
                 Add new category
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                <CategoryColorPicker size="sm" color={newCategoryColor || getCategoryDefaultColor(newCategoryName.trim())} label="New category color" onChange={setNewCategoryColor} />
                 <input 
                   type="text"
                   value={newCategoryName}
                   onChange={e => setNewCategoryName(e.target.value)}
                   placeholder="New category name..."
-                  className="flex-1 min-w-0 bg-white dark:bg-black/20 rounded-xl px-4 py-3 outline-none focus:ring-2 ring-black/5 dark:ring-white/5 font-medium text-sm dark:text-white shadow-xs"
+                  className="ui-field flex-1 min-w-0 bg-ui-surface rounded-xl px-4 py-3 outline-none focus:ring-2 ring-ui-ink/5 font-medium text-sm dark:text-white shadow-xs"
                 />
                 <button 
                   type="submit"
                   disabled={loading || !newCategoryName.trim()}
-                  className="bg-black dark:bg-white dark:text-black text-white px-6 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all shadow-xs hover:opacity-90 disabled:opacity-40 shrink-0"
+                  className="ui-button ui-button-primary bg-ui-primary text-ui-primary-text px-6 py-3 rounded-xl font-bold text-sm transition-all shadow-xs hover:opacity-90 disabled:opacity-40 shrink-0"
                 >
                   Add
                 </button>
               </div>
-            </form>
+            </ValidatedForm>
           </section>
 
-          <div className="bg-black/5 dark:bg-white/5 p-8 rounded-[32px] mb-8">
+          <div className="ui-section-card bg-ui-section p-8 rounded-[32px] mb-8">
             <div className="flex items-center gap-4 mb-2">
-              <div className="w-12 h-12 bg-black dark:bg-white rounded-full flex items-center justify-center text-white dark:text-black">
+              <div className="w-12 h-12 bg-ui-primary rounded-full flex items-center justify-center text-ui-primary-text">
                 <User size={24} />
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-black/30 dark:text-white/30">Account</p>
+                <p className="ui-meta text-[10px] font-bold uppercase tracking-widest text-ui-ink/30">Account</p>
                 <p className="font-bold dark:text-white">{user.email}</p>
               </div>
             </div>
@@ -342,10 +299,10 @@ export const SettingsPage: React.FC = () => {
 
           <button
             onClick={() => auth.signOut()}
-            className="w-full flex items-center justify-between p-6 bg-black/5 dark:bg-white/5 rounded-[24px] hover:bg-black/10 dark:hover:bg-white/10 transition-colors group"
+            className="ui-setting-action w-full flex items-center justify-between p-6 bg-ui-section rounded-[24px] hover:bg-black/10 dark:hover:bg-white/10 transition-colors group"
           >
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-white dark:bg-black/20 rounded-xl text-black dark:text-white group-hover:scale-110 transition-transform">
+              <div className="p-3 bg-ui-surface rounded-xl text-ui-ink transition-transform">
                 <LogOut size={20} />
               </div>
               <span className="font-bold dark:text-white">Disconnect / Sign out</span>
@@ -355,10 +312,10 @@ export const SettingsPage: React.FC = () => {
           <button
             onClick={handleExport}
             disabled={loading}
-            className="w-full flex items-center justify-between p-6 bg-black/5 dark:bg-white/5 rounded-[24px] hover:bg-black/10 dark:hover:bg-white/10 transition-colors group"
+            className="ui-setting-action w-full flex items-center justify-between p-6 bg-ui-section rounded-[24px] hover:bg-black/10 dark:hover:bg-white/10 transition-colors group"
           >
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-white dark:bg-black/20 rounded-xl text-black dark:text-white group-hover:scale-110 transition-transform">
+              <div className="p-3 bg-ui-surface rounded-xl text-ui-ink transition-transform">
                 <Download size={20} />
               </div>
               <span className="font-bold dark:text-white">Download data as CSV</span>
@@ -367,10 +324,10 @@ export const SettingsPage: React.FC = () => {
 
           <button
             onClick={() => setIsResetModalOpen(true)}
-            className="w-full flex items-center justify-between p-6 bg-red-500/10 rounded-[24px] hover:bg-red-500 text-red-600 hover:text-white transition-all group"
+            className="ui-setting-action w-full flex items-center justify-between p-6 bg-red-500/10 rounded-[24px] hover:bg-red-500 text-red-600 hover:text-white transition-all group"
           >
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-white dark:bg-black/20 rounded-xl text-red-600 group-hover:scale-110 transition-transform">
+              <div className="p-3 bg-ui-surface rounded-xl text-red-600 transition-transform">
                 <RotateCcw size={20} />
               </div>
               <span className="font-bold">Reset data</span>
@@ -381,10 +338,10 @@ export const SettingsPage: React.FC = () => {
       <Modal 
         isOpen={isResetModalOpen} 
         onClose={() => setIsResetModalOpen(false)} 
-        title="Reset Data"
+        title="Reset data"
       >
         <div className="space-y-4">
-          <div className="flex flex-col gap-3">
+          <DialogActions>
             <button
               onClick={() => handleReset('history')}
               disabled={loading}
@@ -405,23 +362,23 @@ export const SettingsPage: React.FC = () => {
 
             <button
               onClick={() => setIsResetModalOpen(false)}
-              className="w-full py-4 text-sm font-bold text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white transition-colors"
+              className="w-full py-4 text-sm font-bold text-ui-ink/40 hover:text-black dark:hover:text-white transition-colors"
             >
               Cancel
             </button>
-          </div>
+          </DialogActions>
         </div>
       </Modal>
 
-      <footer className="mt-20 pt-12 border-t border-black/5 dark:border-white/5 flex flex-col items-center gap-3">
+      <footer className="mt-20 pt-12 border-t border-ui-border flex flex-col items-center gap-3">
         <div className="flex flex-col items-center gap-1">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/70 dark:text-white/70">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-ui-ink/70">
             Dailio: version {pkg.version}
           </p>
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/70 dark:text-white/70 mt-1">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-ui-ink/70 mt-1">
             Gaspard Berthelier
           </p>
-          <p className="text-[10px] font-bold tracking-[0.1em] text-black/70 dark:text-white/70">
+          <p className="text-[10px] font-bold tracking-[0.1em] text-ui-ink/70">
             gberthelier.projet@gmail.com
           </p>
         </div>
@@ -437,7 +394,7 @@ export const SettingsPage: React.FC = () => {
           href="https://ko-fi.com/3gaspo" 
           target="_blank" 
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-black dark:bg-white text-white dark:text-black rounded-full text-[10px] font-bold uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-ui-primary text-ui-primary-text rounded-full text-[10px] font-bold uppercase tracking-widest transition-all shadow-lg"
         >
           <Heart size={14} fill="currentColor" />
           Support the project

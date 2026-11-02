@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { AuthProvider, Category, DataProvider, User, UserSettings } from '../types';
 import { LocalAuthProvider } from './LocalAuthProvider';
 import { LocalDataProvider } from './LocalDataProvider';
@@ -15,6 +15,7 @@ interface AppContextType {
   refreshCategories: () => Promise<void>;
   isDevMode: boolean;
   loading: boolean;
+  settingsError: string | null;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -29,6 +30,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     isDevMode: boolean;
     loading: boolean;
   } | null>(null);
+  const settingsWrites = useRef<Promise<void>>(Promise.resolve());
+  const settingsVersion = useRef(0);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
 
   const refreshCategories = async () => {
     if (!state?.user) return;
@@ -38,9 +42,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateSettings = async (newSettings: Partial<UserSettings>) => {
     if (!state?.user) return;
-    await state.data.updateSettings(state.user.uid, newSettings);
-    const updated = await state.data.getSettings(state.user.uid);
-    setState(prev => prev ? { ...prev, settings: updated } : null);
+    const { user, data, settings: previous } = state;
+    const version = ++settingsVersion.current;
+    setSettingsError(null);
+    setState(prev => prev?.user?.uid === user.uid ? { ...prev, settings: { ...prev.settings, ...newSettings } } : prev);
+    const write = settingsWrites.current.catch(() => {}).then(() => data.updateSettings(user.uid, newSettings));
+    settingsWrites.current = write;
+    try {
+      await write;
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      if (version === settingsVersion.current) {
+        setState(prev => prev?.user?.uid === user.uid ? { ...prev, settings: previous } : prev);
+        setSettingsError('Save failed');
+      }
+    }
   };
 
   useEffect(() => {
@@ -84,7 +100,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   if (!state) return null;
 
   return (
-    <AppContext.Provider value={{ ...state, refreshCategories, updateSettings }}>
+    <AppContext.Provider value={{ ...state, refreshCategories, updateSettings, settingsError }}>
       {children}
     </AppContext.Provider>
   );

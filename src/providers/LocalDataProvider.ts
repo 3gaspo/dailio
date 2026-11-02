@@ -89,6 +89,19 @@ export class LocalDataProvider implements DataProvider {
     localStorage.setItem(this.getStorageKey(uid, `period_${periodicity}_${periodKey}`), JSON.stringify(updated));
   }
 
+  async getPeriodDocs(uid: string, periodicity: Periodicity, startKey: string, endKey: string): Promise<Record<string, PeriodDoc>> {
+    const prefix = this.getStorageKey(uid, `period_${periodicity}_`);
+    const periods: Record<string, PeriodDoc> = {};
+    for (const storageKey of Object.keys(localStorage)) {
+      if (!storageKey.startsWith(prefix)) continue;
+      const key = storageKey.slice(prefix.length);
+      if (key < startKey || key > endKey) continue;
+      const value = localStorage.getItem(storageKey);
+      if (value) periods[key] = JSON.parse(value);
+    }
+    return periods;
+  }
+
   async resetData(uid: string, option: 'history' | 'all'): Promise<void> {
     const keys = Object.keys(localStorage);
     keys.forEach(k => {

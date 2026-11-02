@@ -1,3 +1,4 @@
+import { ActionButton } from '@3gaspo/app-ui/ActionButton';
 import React, { useState, useMemo } from 'react';
 import { TaskGroup, Category } from '../types';
 import { ComputedHabit } from '../utils/habitLogic';
@@ -77,49 +78,49 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
             ? "border-orange-500/35 dark:border-orange-400/35 ring-2 ring-orange-500/20 dark:ring-orange-400/20" 
             : "border-orange-500/30 dark:border-orange-400/30 hover:border-orange-500/50 dark:hover:border-orange-400/50")
         : (isExpanded 
-            ? "border-black/5 dark:border-white/5 ring-2 ring-black/10 dark:ring-white/10" 
-            : "border-black/5 dark:border-white/5 hover:border-black/15 dark:hover:border-white/15")
+            ? "border-ui-border ring-2 ring-ui-ink/10"
+            : "border-ui-border hover:border-black/15 dark:hover:border-white/15")
     )}>
       {/* Group Header */}
       <div className={cn(
-        "flex items-center p-3 sm:p-4 gap-3 transition-colors",
+        "task-group-header transition-colors",
         hasOrangeSubtask && !isAllCompleted
           ? "bg-orange-500/[0.04] dark:bg-orange-400/[0.04]"
           : "bg-black/[0.02] dark:bg-white/[0.02]"
       )}>
         {/* Reorder drag handle */}
         {isReorderMode && (
-          <div className="p-1 text-black/30 dark:text-white/30 cursor-grab active:cursor-grabbing shrink-0">
+          <div className="p-1 text-ui-ink/30 cursor-grab active:cursor-grabbing shrink-0">
             <GripVertical size={20} />
           </div>
         )}
 
         {/* Master Group Checkbox */}
         {!isReorderMode && !isGroupingMode && (
-          <button
+          <ActionButton scope="dailio-habits"
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              onToggleGroup();
+              return onToggleGroup();
             }}
             className={cn(
               "w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all shrink-0",
               isAllCompleted 
-                ? "bg-black dark:bg-white border-black dark:border-white text-white dark:text-black shadow-xs" 
+                ? "bg-ui-primary border-black dark:border-white text-ui-primary-text shadow-xs"
                 : (hasOrangeSubtask 
                     ? "border-orange-500/30 dark:border-orange-400/30 text-transparent hover:border-orange-500/60 dark:hover:border-orange-400/60" 
-                    : "border-black/20 dark:border-white/20 text-transparent hover:border-black/40 dark:hover:border-white/40")
+                    : "border-ui-ink/20 text-transparent hover:border-black/40 dark:hover:border-white/40")
             )}
             title={isAllCompleted ? "Mark group as incomplete" : "Mark group as complete"}
           >
             <Check size={18} strokeWidth={3} />
-          </button>
+          </ActionButton>
         )}
 
         {/* Toggle Expand / Group Title Area */}
         <div 
           onClick={() => !isEditingName && setIsExpanded(!isExpanded)} 
-          className="flex-1 flex items-center gap-2.5 min-w-0 cursor-pointer select-none py-1"
+          className="task-group-title flex items-center min-w-0 cursor-pointer select-none py-1"
         >
           <ChevronRight 
             size={18} 
@@ -128,17 +129,17 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
               isExpanded && "rotate-90",
               hasOrangeSubtask
                 ? (isAllCompleted ? "text-orange-500/40 dark:text-orange-400/40" : "text-orange-500 dark:text-orange-400")
-                : (isExpanded ? "text-black dark:text-white" : "text-black/40 dark:text-white/40")
+                : (isExpanded ? "text-ui-ink" : "text-ui-ink/40")
             )} 
           />
 
           <Folder 
             size={18} 
             className={cn(
-              "shrink-0 transition-colors",
+              "task-group-folder shrink-0 transition-colors",
               hasOrangeSubtask
                 ? (isAllCompleted ? "text-orange-500/40 dark:text-orange-400/40" : "text-orange-500 dark:text-orange-400")
-                : "text-black/50 dark:text-white/50"
+                : "text-ui-ink/50"
             )} 
           />
 
@@ -151,61 +152,61 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
               onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
               onClick={(e) => e.stopPropagation()}
               autoFocus
-              className="bg-white dark:bg-neutral-800 border border-black/20 dark:border-white/20 rounded-lg px-2 py-0.5 text-sm font-bold outline-none dark:text-white"
+              className="ui-field bg-ui-surface border border-ui-ink/20 rounded-lg px-2 py-0.5 text-sm font-bold outline-none dark:text-white"
             />
           ) : (
             <span 
-              title={hasOrangeSubtask ? (group.periodicity === 'weekly' ? "Contains uncompleted tasks from previous active week" : "Contains uncompleted tasks from yesterday") : undefined}
+              title={group.name}
               className={cn(
                 "font-bold text-base truncate transition-colors",
                 hasOrangeSubtask
                   ? (isAllCompleted ? "text-orange-500/40 dark:text-orange-400/40 line-through" : "text-orange-500 dark:text-orange-400")
-                  : (isAllCompleted ? "line-through text-black/40 dark:text-white/40" : "text-black dark:text-white")
+                  : (isAllCompleted ? "line-through text-ui-ink/40" : "text-ui-ink")
               )}
             >
               {group.name}
             </span>
           )}
 
-          <span className={cn(
+          <span className={"ui-meta " + (cn(
             "text-[10px] font-bold tracking-wider px-2.5 py-0.5 rounded-full shrink-0 ml-1 transition-colors",
             hasOrangeSubtask
               ? (isAllCompleted 
                   ? "bg-orange-500/10 text-orange-500/50 dark:text-orange-400/50" 
                   : "bg-orange-500/15 text-orange-600 dark:text-orange-400 font-extrabold")
-              : "bg-black/5 dark:bg-white/10 text-black/60 dark:text-white/60"
-          )}>
+              : "bg-ui-section text-ui-ink/60"
+          ))}>
             {completedTasks}/{totalTasks}
           </span>
         </div>
 
         {/* Group Actions */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="task-group-actions flex items-center shrink-0">
           {!isEditingName && (
-            <button
+            <ActionButton scope="dailio-habits"
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 setIsEditingName(true);
               }}
-              className="p-1.5 text-black/20 dark:text-white/20 hover:text-black dark:hover:text-white rounded-lg transition-colors"
+              className="ui-icon-button ui-row-action text-ui-ink/60 hover:text-black dark:hover:text-white transition-colors"
               title="Rename group"
             >
               <Edit3 size={15} />
-            </button>
+            </ActionButton>
           )}
 
-          <button
+          <ActionButton scope="dailio-habits"
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              onUngroup();
+              return onUngroup();
             }}
-            className="p-1.5 text-black/20 dark:text-white/20 hover:text-red-500 rounded-lg transition-colors"
+            className="ui-icon-button ui-row-action text-ui-ink/60 hover:text-red-500 transition-colors"
             title="Ungroup tasks"
           >
             <Trash2 size={16} />
-          </button>
+          </ActionButton>
         </div>
       </div>
 
@@ -216,15 +217,15 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden border-t border-black/5 dark:border-white/5 bg-black/[0.01] dark:bg-white/[0.01]"
+            transition={{ duration: 0.15 }}
+            className="overflow-hidden border-t border-ui-border bg-black/[0.01] dark:bg-white/[0.01]"
           >
             <div className={cn(
-              "p-3 pl-4 sm:pl-8 space-y-2 border-l-2 my-2 ml-4 transition-colors",
-              hasOrangeSubtask ? "border-orange-500/35 dark:border-orange-400/35" : "border-black/10 dark:border-white/10"
+              "task-group-children space-y-2 border-l-2 transition-colors",
+              hasOrangeSubtask ? "border-orange-500/35 dark:border-orange-400/35" : "border-ui-ink/10"
             )}>
               {totalTasks === 0 ? (
-                <p className="text-xs italic text-black/30 dark:text-white/30 py-2">No tasks in this group</p>
+                <p className="ui-meta text-xs italic text-ui-ink/30 py-2">No tasks in this group</p>
               ) : isReorderMode ? (
                 <Reorder.Group
                   axis="y"

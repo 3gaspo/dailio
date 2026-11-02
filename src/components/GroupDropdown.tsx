@@ -38,12 +38,31 @@ export const GroupDropdown: React.FC<GroupDropdownProps> = ({
   const handleSelect = (val: string) => {
     onChange(val);
     setIsOpen(false);
+    containerRef.current?.querySelector('button')?.focus();
   };
 
   return (
-    <div className={cn("relative w-full", className)} ref={containerRef}>
+    <div className={cn("relative w-full", className)} ref={containerRef} onKeyDown={event => {
+      const buttons = Array.from(containerRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? []) as HTMLButtonElement[];
+      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+        if (!isOpen && !['ArrowDown', 'ArrowUp'].includes(event.key)) return;
+        event.preventDefault();
+        if (!isOpen) { setIsOpen(true); requestAnimationFrame(() => containerRef.current?.querySelectorAll<HTMLButtonElement>('button')[1]?.focus()); return; }
+        const options = buttons.slice(1);
+        const index = options.indexOf(document.activeElement as HTMLButtonElement);
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 : (index + (event.key === 'ArrowUp' ? -1 : 1) + options.length) % options.length;
+        options[next]?.focus();
+      }
+
+      if (event.key === 'Escape' && isOpen) {
+        event.preventDefault();
+        event.stopPropagation();
+        setIsOpen(false);
+        containerRef.current?.querySelector('button')?.focus();
+      }
+    }}>
       {label && (
-        <div className="text-[10px] font-bold uppercase tracking-widest text-black/40 dark:text-white/40 mb-2 ml-1 flex items-center gap-1.5">
+        <div className="ui-meta text-[10px] font-bold uppercase tracking-widest text-ui-ink/40 mb-2 ml-1 flex items-center gap-1.5">
           <Layers size={12} />
           <span>{label}</span>
         </div>
@@ -52,31 +71,33 @@ export const GroupDropdown: React.FC<GroupDropdownProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          "w-full bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 rounded-2xl px-4 py-3.5 font-bold text-sm flex items-center justify-between transition-all outline-none focus:ring-2 ring-black/10 dark:ring-white/10 active:scale-[0.99]",
-          isOpen && "ring-2 ring-black/10 dark:ring-white/10 bg-black/10 dark:bg-white/10"
-        )}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        className={"ui-select-trigger " + (cn(
+          "w-full bg-ui-section border border-ui-border rounded-2xl px-4 py-3.5 font-bold text-sm flex items-center justify-between transition-all outline-none focus:ring-2 ring-ui-ink/10 ",
+          isOpen && "ring-2 ring-ui-ink/10 bg-ui-ink/10"
+        ))}
       >
         <div className="flex items-center gap-2.5 truncate">
           {isNone ? (
-            <div className="flex items-center gap-2 text-black/50 dark:text-white/50 font-medium">
-              <span className="w-2.5 h-2.5 rounded-full bg-black/20 dark:bg-white/20 shrink-0" />
+            <div className="flex items-center gap-2 text-ui-ink/50 font-medium">
+              <span className="w-2.5 h-2.5 rounded-full bg-ui-ink/20 shrink-0" />
               <span className="text-sm dark:text-white/70">None (Standalone task)</span>
             </div>
           ) : isNew ? (
-            <div className="flex items-center gap-2 text-black dark:text-white font-bold">
-              <FolderPlus size={18} className="text-black/60 dark:text-white/60 shrink-0" />
+            <div className="flex items-center gap-2 text-ui-ink font-bold">
+              <FolderPlus size={18} className="text-ui-ink/60 shrink-0" />
               <span>Create new group...</span>
             </div>
           ) : selectedGroup ? (
-            <div className="flex items-center gap-2 truncate text-black dark:text-white font-bold">
-              <Folder size={18} className="text-black/50 dark:text-white/50 shrink-0" />
+            <div className="flex items-center gap-2 truncate text-ui-ink font-bold">
+              <Folder size={18} className="text-ui-ink/50 shrink-0" />
               <span className="truncate">{selectedGroup.name}</span>
             </div>
           ) : null}
         </div>
 
-        <div className="flex items-center gap-2 text-black/40 dark:text-white/40 shrink-0">
+        <div className="flex items-center gap-2 text-ui-ink/40 shrink-0">
           {!isNone && (
             <span
               onClick={(e) => {
@@ -97,26 +118,27 @@ export const GroupDropdown: React.FC<GroupDropdownProps> = ({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-white dark:bg-neutral-900 border border-black/10 dark:border-white/10 rounded-2xl p-2 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 max-h-60 overflow-y-auto">
+        <div role="listbox" className="ui-menu absolute top-full left-0 right-0 mt-2 z-50 bg-ui-surface border border-ui-ink/10 rounded-2xl p-2 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 max-h-60 overflow-y-auto">
           {/* None Option */}
           <button
             type="button"
+            role="option" aria-selected={isNone}
             onClick={() => handleSelect('')}
-            className={cn(
+            className={"ui-menu-item " + (cn(
               "w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-between transition-colors mb-1",
               isNone
-                ? "bg-black/10 dark:bg-white/15 text-black dark:text-white"
-                : "text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5"
-            )}
+                ? "bg-black/10 dark:bg-white/15 text-ui-ink"
+                : "text-ui-ink/60 hover:bg-black/5 dark:hover:bg-white/5"
+            ))}
           >
             <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-black/20 dark:bg-white/20 shrink-0" />
+              <span className="w-2.5 h-2.5 rounded-full bg-ui-ink/20 shrink-0" />
               <span>None (Standalone task)</span>
             </div>
-            {isNone && <Check size={16} className="text-black dark:text-white" />}
+            {isNone && <Check size={16} className="text-ui-ink" />}
           </button>
 
-          {groups.length > 0 && <div className="h-px bg-black/5 dark:bg-white/5 my-1" />}
+          {groups.length > 0 && <div className="h-px bg-ui-section my-1" />}
 
           {/* Group Options */}
           {groups.map(group => {
@@ -126,41 +148,42 @@ export const GroupDropdown: React.FC<GroupDropdownProps> = ({
               <button
                 key={group.id}
                 type="button"
-                onClick={() => handleSelect(group.id)}
-                className={cn(
+                role="option" aria-selected={isSelected} onClick={() => handleSelect(group.id)}
+                className={"ui-menu-item " + (cn(
                   "w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center justify-between mb-0.5 dark:text-white",
                   isSelected
-                    ? "bg-black/5 dark:bg-white/10"
+                    ? "bg-ui-section"
                     : "hover:bg-black/5 dark:hover:bg-white/5"
-                )}
+                ))}
               >
                 <div className="flex items-center gap-2.5 truncate">
-                  <Folder size={18} className="text-black/50 dark:text-white/50 shrink-0" />
+                  <Folder size={18} className="text-ui-ink/50 shrink-0" />
                   <span className="truncate">{group.name}</span>
                 </div>
-                {isSelected && <Check size={16} className="text-black dark:text-white ml-2 shrink-0" />}
+                {isSelected && <Check size={16} className="text-ui-ink ml-2 shrink-0" />}
               </button>
             );
           })}
 
-          <div className="h-px bg-black/5 dark:bg-white/5 my-1" />
+          <div className="h-px bg-ui-section my-1" />
 
           {/* Create New Group Option */}
           <button
             type="button"
+            role="option" aria-selected={isNew}
             onClick={() => handleSelect('new')}
-            className={cn(
+            className={"ui-menu-item " + (cn(
               "w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center justify-between dark:text-white",
               isNew
-                ? "bg-black/5 dark:bg-white/10 text-black dark:text-white"
-                : "text-black/70 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/5"
-            )}
+                ? "bg-ui-section text-ui-ink"
+                : "text-ui-ink/70 hover:bg-black/5 dark:hover:bg-white/5"
+            ))}
           >
             <div className="flex items-center gap-2.5">
-              <FolderPlus size={18} className="text-black/60 dark:text-white/60 shrink-0" />
+              <FolderPlus size={18} className="text-ui-ink/60 shrink-0" />
               <span>+ Create new group...</span>
             </div>
-            {isNew && <Check size={16} className="text-black dark:text-white ml-2 shrink-0" />}
+            {isNew && <Check size={16} className="text-ui-ink ml-2 shrink-0" />}
           </button>
         </div>
       )}

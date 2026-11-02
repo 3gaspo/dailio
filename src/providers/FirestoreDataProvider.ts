@@ -1,4 +1,4 @@
-import { getFirestore, initializeFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, deleteDoc, writeBatch, deleteField } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, collection, doc, documentId, getDoc, getDocs, setDoc, updateDoc, query, where, deleteDoc, writeBatch, deleteField } from 'firebase/firestore';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { DataProvider, Habit, PeriodDoc, Periodicity, Category, UserSettings } from '../types';
 import { getCategoryDefaultColor } from '../utils/categoryUtils';
@@ -46,21 +46,14 @@ export class FirestoreDataProvider implements DataProvider {
     const d = doc(this.db, 'users', uid, 'settings', 'general');
     const snap = await getDoc(d);
     if (snap.exists()) {
-      const settings = snap.data() as UserSettings;
-      if (!settings.theme) settings.theme = 'light';
-      return settings;
+      return { dailyObjective: 0.8, weeklyObjective: 0.8, theme: 'light', ...snap.data() } as UserSettings;
     }
     return { dailyObjective: 0.8, weeklyObjective: 0.8, theme: 'light' };
   }
 
   async updateSettings(uid: string, settings: Partial<UserSettings>): Promise<void> {
     const d = doc(this.db, 'users', uid, 'settings', 'general');
-    const snap = await getDoc(d);
-    if (snap.exists()) {
-      await updateDoc(d, cleanData({ ...settings }));
-    } else {
-      await setDoc(d, cleanData({ dailyObjective: 0.8, weeklyObjective: 0.8, theme: 'light', ...settings }));
-    }
+    await setDoc(d, cleanData({ ...settings }), { merge: true });
   }
 
   async getHabits(uid: string): Promise<Habit[]> {
@@ -122,6 +115,13 @@ export class FirestoreDataProvider implements DataProvider {
         updatedAt: new Date()
       }));
     }
+  }
+
+  async getPeriodDocs(uid: string, periodicity: Periodicity, startKey: string, endKey: string): Promise<Record<string, PeriodDoc>> {
+    const colName = periodicity === 'daily' ? 'periodDaily' : 'periodWeekly';
+    const periods = query(collection(this.db, 'users', uid, colName), where(documentId(), '>=', startKey), where(documentId(), '<=', endKey));
+    const snapshot = await getDocs(periods);
+    return Object.fromEntries(snapshot.docs.map(item => [item.id, item.data() as PeriodDoc]));
   }
 
   async resetData(uid: string, option: 'history' | 'all'): Promise<void> {

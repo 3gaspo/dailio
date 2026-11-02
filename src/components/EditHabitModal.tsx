@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { ACTIONS } from '@3gaspo/app-ui/labels';
+import { ValidatedForm } from './ValidatedForm';
+import React, { useState, useEffect, useId } from 'react';
+import { DialogActions } from './Dialog';
 import { Modal } from './Modal';
 import { Category, TaskGroup, Periodicity } from '../types';
 import { CategoryDropdown } from './CategoryDropdown';
@@ -44,6 +47,7 @@ export const EditHabitModal: React.FC<EditHabitModalProps> = ({
   onSave,
   showGroupOption = true,
 }) => {
+  const formId = useId();
   const [name, setName] = useState('');
   const [periodicity, setPeriodicity] = useState<Periodicity>('daily');
   const [categoryId, setCategoryId] = useState('');
@@ -108,15 +112,15 @@ export const EditHabitModal: React.FC<EditHabitModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Edit task">
-      <form onSubmit={handleSubmit} className="space-y-6">
+    <Modal isOpen={isOpen} onClose={onClose} title={isOneOff ? "Edit task" : "Edit habit"}>
+      <ValidatedForm id={formId} onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-1">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-black/40 dark:text-white/40">Name</label>
+          <label className="ui-field-label text-[10px] font-bold uppercase tracking-widest text-ui-ink/40">Name</label>
           <input
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
-            className="w-full text-xl font-medium border-b-2 border-black/10 dark:border-white/10 focus:border-black dark:focus:border-white bg-transparent dark:text-white outline-none pb-1 transition-colors"
+            className="ui-field w-full text-xl font-medium border-b-2 border-ui-ink/10 focus:border-black dark:focus:border-white bg-transparent dark:text-white outline-none pb-1 transition-colors"
             placeholder="Drink water"
             required
           />
@@ -126,24 +130,24 @@ export const EditHabitModal: React.FC<EditHabitModalProps> = ({
           <button
             type="button"
             onClick={() => handlePeriodicityChange('daily')}
-            className={cn(
+            className={"ui-button " + (cn(
               "py-3 rounded-xl border font-bold text-sm transition-all",
               periodicity === 'daily'
-                ? "border-black dark:border-white bg-black/5 dark:bg-white/5 dark:text-white"
-                : "border-black/10 dark:border-white/10 text-black/40 dark:text-white/40"
-            )}
+                ? "border-black dark:border-white bg-ui-section dark:text-white"
+                : "border-ui-ink/10 text-ui-ink/40"
+            ))}
           >
             Daily
           </button>
           <button
             type="button"
             onClick={() => handlePeriodicityChange('weekly')}
-            className={cn(
+            className={"ui-button " + (cn(
               "py-3 rounded-xl border font-bold text-sm transition-all",
               periodicity === 'weekly'
-                ? "border-black dark:border-white bg-black/5 dark:bg-white/5 dark:text-white"
-                : "border-black/10 dark:border-white/10 text-black/40 dark:text-white/40"
-            )}
+                ? "border-black dark:border-white bg-ui-section dark:text-white"
+                : "border-ui-ink/10 text-ui-ink/40"
+            ))}
           >
             Weekly
           </button>
@@ -151,7 +155,7 @@ export const EditHabitModal: React.FC<EditHabitModalProps> = ({
 
         {categories.length > 0 && (
           <div className="space-y-1">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-black/40 dark:text-white/40">Category</label>
+            <label className="ui-field-label text-[10px] font-bold uppercase tracking-widest text-ui-ink/40">Category</label>
             <CategoryDropdown
               categories={categories}
               value={categoryId}
@@ -183,16 +187,16 @@ export const EditHabitModal: React.FC<EditHabitModalProps> = ({
                 onChange={e => setNewGroupName(e.target.value)}
                 placeholder="Enter new group name..."
                 required
-                className="w-full text-sm font-medium border-b-2 border-black/10 dark:border-white/10 focus:border-black dark:focus:border-white bg-transparent dark:text-white outline-none pt-2 pb-1 transition-colors"
+                className="ui-field w-full text-sm font-medium border-b-2 border-ui-ink/10 focus:border-black dark:focus:border-white bg-transparent dark:text-white outline-none pt-2 pb-1 transition-colors"
               />
             )}
           </div>
         )}
 
-        <div className="flex items-center justify-between py-2 border-t border-black/5 dark:border-white/5">
+        <div className="flex items-center justify-between py-2 border-t border-ui-border">
           <div>
             <div className="font-bold text-sm dark:text-white">One-off task</div>
-            <div className="text-xs text-black/40 dark:text-white/40">Only for this date/week</div>
+            <div className="ui-meta text-xs text-ui-ink/40">Only for this date/week</div>
           </div>
           <input
             type="checkbox"
@@ -202,10 +206,10 @@ export const EditHabitModal: React.FC<EditHabitModalProps> = ({
           />
         </div>
 
-        <div className="flex items-center justify-between py-2 border-t border-black/5 dark:border-white/5">
+        <div className="flex items-center justify-between py-2 border-t border-ui-border">
           <div>
             <div className="font-bold text-sm dark:text-white">Anti-task</div>
-            <div className="text-xs text-black/40 dark:text-white/40">Completed by default</div>
+            <div className="ui-meta text-xs text-ui-ink/40">Completed by default</div>
           </div>
           <input
             type="checkbox"
@@ -215,10 +219,10 @@ export const EditHabitModal: React.FC<EditHabitModalProps> = ({
           />
         </div>
 
-        <div className="space-y-1 py-2 border-t border-black/5 dark:border-white/5">
+        <div className="space-y-1 py-2 border-t border-ui-border">
           <div className="flex justify-between items-center mb-1">
-            <label className="font-bold text-sm dark:text-white">Sub-steps</label>
-            <span className="text-xs font-bold text-black/60 dark:text-white/60">
+            <label className="ui-field-label font-bold text-sm dark:text-white">Sub-steps</label>
+            <span className="ui-meta text-xs font-bold text-ui-ink/60">
               {multiplicity} {multiplicity === 1 ? 'step' : 'steps'}
             </span>
           </div>
@@ -232,16 +236,18 @@ export const EditHabitModal: React.FC<EditHabitModalProps> = ({
           />
         </div>
 
-        {error && <p className="text-red-500 text-xs font-bold">{error}</p>}
+        {error && <p role="alert" className="ui-error text-red-500 text-xs font-bold">{error}</p>}
 
-        <button
+        <DialogActions form={formId} cancel>
+          <button
           type="submit"
           disabled={isSubmitting || !name.trim()}
-          className="w-full py-4 bg-black dark:bg-white text-white dark:text-black font-bold rounded-2xl shadow-lg hover:opacity-90 transition-opacity disabled:opacity-40"
+          className="ui-button ui-button-primary w-full py-4 bg-ui-primary text-ui-primary-text font-bold rounded-2xl shadow-lg hover:opacity-90 transition-opacity disabled:opacity-40"
         >
-          {isSubmitting ? "Saving..." : "Save changes"}
-        </button>
-      </form>
+          {isSubmitting ? ACTIONS.saving : ACTIONS.save}
+          </button>
+        </DialogActions>
+      </ValidatedForm>
     </Modal>
   );
 };

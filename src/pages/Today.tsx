@@ -1,9 +1,15 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import { ConfirmDelete } from '@3gaspo/app-ui/ConfirmDelete';
+import { ACTIONS } from '@3gaspo/app-ui/labels';
+import { ValidatedForm } from '../components/ValidatedForm';
+import { StateFeedback } from '../components/StateFeedback';
+import React, { useEffect, useState, useMemo, useRef, useId } from 'react';
 import { useApp } from '../providers/AppProvider';
 import { getDailyKey, getWeeklyKey } from '../utils/dateUtils';
 import { computePeriodStats, ComputedHabit, getUncompletedHabitsFromPreviousPeriod } from '../utils/habitLogic';
 import { Habit, PeriodDoc, TaskGroup, UserSettings } from '../types';
-import { Plus, ArrowUpDown, X, Layers, FolderPlus } from 'lucide-react';
+import { ArrowUpDown, X, Layers, FolderPlus } from 'lucide-react';
+import { DialogActions } from '../components/Dialog';
+import { FloatingAddButton } from '../components/FloatingAddButton';
 import { Modal } from '../components/Modal';
 import { CategoryDropdown } from '../components/CategoryDropdown';
 import { GroupDropdown } from '../components/GroupDropdown';
@@ -90,11 +96,15 @@ function buildTopLevelItems(
 }
 
 export const TodayPage: React.FC = () => {
-  const { user, data, categories } = useApp();
+  const habitFormId = useId();
+  const groupFormId = useId();
+  const { user, data, categories, settings } = useApp();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [dailyDoc, setDailyDoc] = useState<PeriodDoc | null>(null);
   const [weeklyDoc, setWeeklyDoc] = useState<PeriodDoc | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const loadVersion = useRef(0);
   
   // Reordering mode
   const [isReorderMode, setIsReorderMode] = useState(false);
@@ -147,69 +157,85 @@ export const TodayPage: React.FC = () => {
   const [uncompletedPrevDailyHabitIds, setUncompletedPrevDailyHabitIds] = useState<Set<string>>(new Set());
   const [uncompletedPrevWeeklyHabitIds, setUncompletedPrevWeeklyHabitIds] = useState<Set<string>>(new Set());
 
-  const fetchData = async () => {
+  const fetchData = async (initialSettings?: UserSettings) => {
+    const version = ++loadVersion.current;
     if (!user) {
       setLoading(false);
       return;
     }
-    const [h, d, w, settings] = await Promise.all([
-      data.getHabits(user.uid),
-      data.getPeriodDoc(user.uid, 'daily', dailyKey),
-      data.getPeriodDoc(user.uid, 'weekly', weeklyKey),
-      data.getSettings(user.uid)
-    ]);
-    setHabits(h);
+    setLoadError(false);
+    try {
+      const [h, d, w, settings] = await Promise.all([
+        data.getHabits(user.uid),
+        data.getPeriodDoc(user.uid, 'daily', dailyKey),
+        data.getPeriodDoc(user.uid, 'weekly', weeklyKey),
+        initialSettings ?? data.getSettings(user.uid)
+      ]);
+      if (version !== loadVersion.current) return;
+      setHabits(h);
 
-    const [uncompletedDaily, uncompletedWeekly] = await Promise.all([
-      getUncompletedHabitsFromPreviousPeriod(data, user.uid, 'daily', h),
-      getUncompletedHabitsFromPreviousPeriod(data, user.uid, 'weekly', h)
-    ]);
-    setUncompletedPrevDailyHabitIds(uncompletedDaily);
-    setUncompletedPrevWeeklyHabitIds(uncompletedWeekly);
+      const loadedDailyGroups = d?.taskGroups ?? settings?.defaultDailyTaskGroups ?? [];
+      const loadedDailyOrder = d?.habitOrder ?? settings?.defaultDailyHabitOrder ?? [];
 
-    const loadedDailyGroups = d?.taskGroups ?? settings?.defaultDailyTaskGroups ?? [];
-    const loadedDailyOrder = d?.habitOrder ?? settings?.defaultDailyHabitOrder ?? [];
+      const loadedWeeklyGroups = w?.taskGroups ?? settings?.defaultWeeklyTaskGroups ?? [];
+      const loadedWeeklyOrder = w?.habitOrder ?? settings?.defaultWeeklyHabitOrder ?? [];
 
-    const loadedWeeklyGroups = w?.taskGroups ?? settings?.defaultWeeklyTaskGroups ?? [];
-    const loadedWeeklyOrder = w?.habitOrder ?? settings?.defaultWeeklyHabitOrder ?? [];
+      const finalDailyDoc: PeriodDoc = d ? {
+        ...d,
+        taskGroups: loadedDailyGroups,
+        habitOrder: loadedDailyOrder
+      } : {
+        done: {},
+        skippedHabitIds: [],
+        oneOffHabits: [],
+        taskGroups: loadedDailyGroups,
+        habitOrder: loadedDailyOrder,
+        updatedAt: new Date()
+      };
 
-    const finalDailyDoc: PeriodDoc = d ? {
-      ...d,
-      taskGroups: loadedDailyGroups,
-      habitOrder: loadedDailyOrder
-    } : {
-      done: {},
-      skippedHabitIds: [],
-      oneOffHabits: [],
-      taskGroups: loadedDailyGroups,
-      habitOrder: loadedDailyOrder,
-      updatedAt: new Date()
-    };
+      const finalWeeklyDoc: PeriodDoc = w ? {
+        ...w,
+        taskGroups: loadedWeeklyGroups,
+        habitOrder: loadedWeeklyOrder
+      } : {
+        done: {},
+        skippedHabitIds: [],
+        oneOffHabits: [],
+        taskGroups: loadedWeeklyGroups,
+        habitOrder: loadedWeeklyOrder,
+        updatedAt: new Date()
+      };
 
-    const finalWeeklyDoc: PeriodDoc = w ? {
-      ...w,
-      taskGroups: loadedWeeklyGroups,
-      habitOrder: loadedWeeklyOrder
-    } : {
-      done: {},
-      skippedHabitIds: [],
-      oneOffHabits: [],
-      taskGroups: loadedWeeklyGroups,
-      habitOrder: loadedWeeklyOrder,
-      updatedAt: new Date()
-    };
+      setDailyDoc(finalDailyDoc);
+      setWeeklyDoc(finalWeeklyDoc);
+      setDailyTaskGroups(loadedDailyGroups);
+      setWeeklyTaskGroups(loadedWeeklyGroups);
 
-    setDailyDoc(finalDailyDoc);
-    setWeeklyDoc(finalWeeklyDoc);
-    setDailyTaskGroups(loadedDailyGroups);
-    setWeeklyTaskGroups(loadedWeeklyGroups);
-
-    setLoading(false);
+      setLoading(false);
+      // Historical emphasis is secondary; today's tasks are already usable.
+      try {
+        const [uncompletedDaily, uncompletedWeekly] = await Promise.all([
+          getUncompletedHabitsFromPreviousPeriod(data, user.uid, 'daily', h),
+          getUncompletedHabitsFromPreviousPeriod(data, user.uid, 'weekly', h)
+        ]);
+        if (version !== loadVersion.current) return;
+        setUncompletedPrevDailyHabitIds(uncompletedDaily);
+        setUncompletedPrevWeeklyHabitIds(uncompletedWeekly);
+      } catch (error) {
+        console.error('Failed to load previous periods:', error);
+      }
+    } catch (error) {
+      if (version !== loadVersion.current) return;
+      console.error('Failed to load habits:', error);
+      setLoadError(true);
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    fetchData();
-  }, [user]);
+    fetchData(settings);
+    return () => { loadVersion.current++; };
+  }, [user, data]);
 
   const dailyStats = useMemo(() => 
     computePeriodStats(dailyKey, 'daily', habits, dailyDoc),
@@ -478,8 +504,8 @@ export const TodayPage: React.FC = () => {
     try {
       await data.updatePeriodDoc(user.uid, periodicity, key, { done: newDone, subDone: newSubDone });
     } catch (error) {
-      console.error("Failed to toggle habit:", error);
-      fetchData();
+      await fetchData();
+      throw error;
     }
   };
 
@@ -518,8 +544,8 @@ export const TodayPage: React.FC = () => {
     try {
       await data.updatePeriodDoc(user.uid, periodicity, key, { done: newDone, subDone: newSubDone });
     } catch (error) {
-      console.error("Failed to toggle sub-habit:", error);
-      fetchData();
+      await fetchData();
+      throw error;
     }
   };
 
@@ -553,8 +579,8 @@ export const TodayPage: React.FC = () => {
     try {
       await data.updatePeriodDoc(user.uid, 'weekly', key, { done: newDone, subDone: newSubDone });
     } catch (error) {
-      console.error("Failed to increment weekly habit count:", error);
-      fetchData();
+      await fetchData();
+      throw error;
     }
   };
 
@@ -589,8 +615,8 @@ export const TodayPage: React.FC = () => {
     try {
       await data.updatePeriodDoc(user.uid, 'weekly', key, { done: newDone, subDone: newSubDone });
     } catch (error) {
-      console.error("Failed to decrement weekly habit count:", error);
-      fetchData();
+      await fetchData();
+      throw error;
     }
   };
 
@@ -621,12 +647,6 @@ export const TodayPage: React.FC = () => {
 
       const currentOrder = (doc?.habitOrder || []).filter(hid => hid !== id);
 
-      if (periodicity === 'daily') {
-        setLocalDailyHabits(prev => prev.filter(h => h.id !== id));
-      } else {
-        setLocalWeeklyHabits(prev => prev.filter(h => h.id !== id));
-      }
-
       await data.updatePeriodDoc(user.uid, periodicity, key, { 
         oneOffHabits: newOneOffs, 
         done: newDone, 
@@ -634,6 +654,12 @@ export const TodayPage: React.FC = () => {
       });
 
       await updateTaskGroupsAndOrderAndSettings(periodicity, updatedGroups, currentOrder);
+      if (periodicity === 'daily') {
+        setLocalDailyHabits(prev => prev.filter(h => h.id !== id));
+      } else {
+        setLocalWeeklyHabits(prev => prev.filter(h => h.id !== id));
+      }
+
       fetchData();
     } else {
       setDeleteConfirm({ id, name, periodicity, isOneOff });
@@ -1033,14 +1059,19 @@ export const TodayPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64 text-black/30 dark:text-white/30 font-medium">
-        Loading habits...
-      </div>
+      <StateFeedback kind="loading" />
     );
   }
 
+  if (loadError) return <StateFeedback kind="error">
+    <button type="button" onClick={() => fetchData()} className="ui-button ui-button-primary bg-ui-primary text-ui-primary-text px-4 py-2 rounded-xl">Retry</button>
+  </StateFeedback>;
+
   return (
-    <div className="max-w-xl mx-auto pb-32">
+    <div className="app-home-content min-w-0">
+      <header className="app-home-header">
+        <h1 className="app-brand-title">Dailio</h1>
+      </header>
       {/* Category Filter */}
       {categories.length > 0 && (
         <div className="mb-8">
@@ -1058,11 +1089,11 @@ export const TodayPage: React.FC = () => {
       <section className="mb-12">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2.5">
-            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black/30 dark:text-white/30">
+            <h2 className="ui-section-title text-xs font-bold uppercase tracking-[0.2em] text-ui-ink/30">
               Daily habits
             </h2>
             {dailyStats.to_do > 0 && (
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-black/60 dark:text-white/60">
+              <span className="ui-meta text-[11px] font-bold px-2 py-0.5 rounded-full bg-ui-section text-ui-ink/60">
                 {dailyStats.done}/{dailyStats.to_do} pts
               </span>
             )}
@@ -1082,8 +1113,8 @@ export const TodayPage: React.FC = () => {
               className={cn(
                 "p-2 rounded-xl transition-all flex items-center gap-1.5",
                 isGroupingModeDaily 
-                  ? "bg-black dark:bg-white text-white dark:text-black shadow-xs" 
-                  : "text-black/20 dark:text-white/20 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
+                  ? "bg-ui-primary text-ui-primary-text shadow-xs"
+                  : "text-ui-ink/20 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
               )}
               title={isGroupingModeDaily ? "Validate grouping" : "Grouping mode"}
             >
@@ -1103,12 +1134,12 @@ export const TodayPage: React.FC = () => {
                 if (isGroupingModeDaily) setIsGroupingModeDaily(false);
               }}
               className={cn(
-                "p-2 rounded-xl transition-all",
+                "ui-reorder-trigger p-2 rounded-xl transition-all",
                 isReorderMode 
-                  ? "bg-black dark:bg-white text-white dark:text-black shadow-xs" 
-                  : "text-black/20 dark:text-white/20 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
+                  ? "bg-ui-primary text-ui-primary-text shadow-xs"
+                  : "text-ui-ink/20 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
               )}
-              title={isReorderMode ? "Exit reorder mode" : "Reorder habits"}
+              aria-pressed={isReorderMode} title={isReorderMode ? "Exit reorder mode" : "Reorder habits"}
             >
               {isReorderMode ? <X size={18} /> : <ArrowUpDown size={18} />}
             </button>
@@ -1117,7 +1148,7 @@ export const TodayPage: React.FC = () => {
 
         {/* Grouping Mode Active Banner for Daily */}
         {isGroupingModeDaily && (
-          <div className="flex items-center justify-between bg-black/5 dark:bg-white/10 p-3 rounded-2xl mb-4 border border-black/10 dark:border-white/10 shadow-xs">
+          <div className="flex items-center justify-between bg-ui-section p-3 rounded-2xl mb-4 border border-ui-ink/10 shadow-xs">
             <div className="flex items-center gap-2 text-xs font-bold dark:text-white">
               <FolderPlus size={16} />
               <span>{selectedDailyTaskIds.size} task{selectedDailyTaskIds.size === 1 ? '' : 's'} selected</span>
@@ -1129,7 +1160,7 @@ export const TodayPage: React.FC = () => {
                   setIsGroupingModeDaily(false);
                   setSelectedDailyTaskIds(new Set());
                 }}
-                className="text-xs font-bold px-3 py-1.5 rounded-xl bg-black/5 dark:bg-white/10 dark:text-white hover:bg-black/10 transition-colors"
+                className="ui-button ui-button-secondary text-xs font-bold px-3 py-1.5 rounded-xl bg-ui-section dark:text-white hover:bg-black/10 transition-colors"
               >
                 Cancel
               </button>
@@ -1137,7 +1168,7 @@ export const TodayPage: React.FC = () => {
                 type="button"
                 disabled={selectedDailyTaskIds.size === 0}
                 onClick={() => handleOpenGroupModal('daily')}
-                className="text-xs font-bold px-4 py-1.5 rounded-xl bg-black dark:bg-white text-white dark:text-black hover:opacity-90 disabled:opacity-40 transition-all shadow-xs"
+                className="ui-button ui-button-primary text-xs font-bold px-4 py-1.5 rounded-xl bg-ui-primary text-ui-primary-text hover:opacity-90 disabled:opacity-40 transition-all shadow-xs"
               >
                 Group selected
               </button>
@@ -1186,9 +1217,7 @@ export const TodayPage: React.FC = () => {
             </Reorder.Item>
           ))}
           {topLevelDailyItems.length === 0 && (
-            <p className="text-black/20 dark:text-white/20 italic text-sm">
-              {selectedCategoryId === 'all' ? "No daily habits for today" : "No daily habits in this category"}
-            </p>
+            <StateFeedback title={selectedCategoryId === 'all' ? 'No daily habits' : 'No matching habits'} />
           )}
         </Reorder.Group>
       </section>
@@ -1197,11 +1226,11 @@ export const TodayPage: React.FC = () => {
       <section className="mb-12">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2.5">
-            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black/30 dark:text-white/30">
+            <h2 className="ui-section-title text-xs font-bold uppercase tracking-[0.2em] text-ui-ink/30">
               Weekly habits
             </h2>
             {weeklyStats.to_do > 0 && (
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-black/60 dark:text-white/60">
+              <span className="ui-meta text-[11px] font-bold px-2 py-0.5 rounded-full bg-ui-section text-ui-ink/60">
                 {weeklyStats.done}/{weeklyStats.to_do} pts
               </span>
             )}
@@ -1220,8 +1249,8 @@ export const TodayPage: React.FC = () => {
               className={cn(
                 "p-2 rounded-xl transition-all flex items-center gap-1.5",
                 isGroupingModeWeekly 
-                  ? "bg-black dark:bg-white text-white dark:text-black shadow-xs" 
-                  : "text-black/20 dark:text-white/20 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
+                  ? "bg-ui-primary text-ui-primary-text shadow-xs"
+                  : "text-ui-ink/20 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
               )}
               title={isGroupingModeWeekly ? "Validate grouping" : "Grouping mode"}
             >
@@ -1240,12 +1269,12 @@ export const TodayPage: React.FC = () => {
                 if (isGroupingModeWeekly) setIsGroupingModeWeekly(false);
               }}
               className={cn(
-                "p-2 rounded-xl transition-all",
+                "ui-reorder-trigger p-2 rounded-xl transition-all",
                 isReorderMode 
-                  ? "bg-black dark:bg-white text-white dark:text-black shadow-xs" 
-                  : "text-black/20 dark:text-white/20 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
+                  ? "bg-ui-primary text-ui-primary-text shadow-xs"
+                  : "text-ui-ink/20 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
               )}
-              title={isReorderMode ? "Exit reorder mode" : "Reorder habits"}
+              aria-pressed={isReorderMode} title={isReorderMode ? "Exit reorder mode" : "Reorder habits"}
             >
               {isReorderMode ? <X size={18} /> : <ArrowUpDown size={18} />}
             </button>
@@ -1254,7 +1283,7 @@ export const TodayPage: React.FC = () => {
 
         {/* Grouping Mode Active Banner for Weekly */}
         {isGroupingModeWeekly && (
-          <div className="flex items-center justify-between bg-black/5 dark:bg-white/10 p-3 rounded-2xl mb-4 border border-black/10 dark:border-white/10 shadow-xs">
+          <div className="flex items-center justify-between bg-ui-section p-3 rounded-2xl mb-4 border border-ui-ink/10 shadow-xs">
             <div className="flex items-center gap-2 text-xs font-bold dark:text-white">
               <FolderPlus size={16} />
               <span>{selectedWeeklyTaskIds.size} task{selectedWeeklyTaskIds.size === 1 ? '' : 's'} selected</span>
@@ -1266,7 +1295,7 @@ export const TodayPage: React.FC = () => {
                   setIsGroupingModeWeekly(false);
                   setSelectedWeeklyTaskIds(new Set());
                 }}
-                className="text-xs font-bold px-3 py-1.5 rounded-xl bg-black/5 dark:bg-white/10 dark:text-white hover:bg-black/10 transition-colors"
+                className="ui-button ui-button-secondary text-xs font-bold px-3 py-1.5 rounded-xl bg-ui-section dark:text-white hover:bg-black/10 transition-colors"
               >
                 Cancel
               </button>
@@ -1274,7 +1303,7 @@ export const TodayPage: React.FC = () => {
                 type="button"
                 disabled={selectedWeeklyTaskIds.size === 0}
                 onClick={() => handleOpenGroupModal('weekly')}
-                className="text-xs font-bold px-4 py-1.5 rounded-xl bg-black dark:bg-white text-white dark:text-black hover:opacity-90 disabled:opacity-40 transition-all shadow-xs"
+                className="ui-button ui-button-primary text-xs font-bold px-4 py-1.5 rounded-xl bg-ui-primary text-ui-primary-text hover:opacity-90 disabled:opacity-40 transition-all shadow-xs"
               >
                 Group selected
               </button>
@@ -1328,20 +1357,13 @@ export const TodayPage: React.FC = () => {
             </Reorder.Item>
           ))}
           {topLevelWeeklyItems.length === 0 && (
-            <p className="text-black/20 dark:text-white/20 italic text-sm">
-              {selectedCategoryId === 'all' ? "No weekly habits for this week" : "No weekly habits in this category"}
-            </p>
+            <StateFeedback title={selectedCategoryId === 'all' ? 'No weekly habits' : 'No matching habits'} />
           )}
         </Reorder.Group>
       </section>
 
       {/* Floating Add Habit Button */}
-      <button
-        onClick={() => setIsAddModalOpen(true)}
-        className="fixed bottom-24 right-6 w-14 h-14 bg-black dark:bg-white text-white dark:text-black rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition-transform active:scale-95 z-40"
-      >
-        <Plus size={28} />
-      </button>
+      <FloatingAddButton label="Add habit" onClick={() => setIsAddModalOpen(true)} />
 
       {/* Modal for Group Creation Name */}
       <Modal 
@@ -1349,78 +1371,68 @@ export const TodayPage: React.FC = () => {
         onClose={() => setIsGroupModalOpen(false)} 
         title="Group tasks"
       >
-        <form onSubmit={handleConfirmCreateGroup} className="space-y-6">
+        <ValidatedForm id={groupFormId} onSubmit={handleConfirmCreateGroup} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-black/40 dark:text-white/40">
+            <label className="ui-field-label text-[10px] font-bold uppercase tracking-widest text-ui-ink/40">
               Group name
             </label>
             <input
               type="text"
               value={groupNameInput}
               onChange={e => setGroupNameInput(e.target.value)}
-              className="w-full text-xl font-medium border-b-2 border-black/10 dark:border-white/10 focus:border-black dark:focus:border-white bg-transparent dark:text-white outline-none pb-1 transition-colors"
+              className="ui-field w-full text-xl font-medium border-b-2 border-ui-ink/10 focus:border-black dark:focus:border-white bg-transparent dark:text-white outline-none pb-1 transition-colors"
               placeholder="e.g. Morning Routine, Work Prep..."
               autoFocus
               required
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
+          <DialogActions form={groupFormId}>
             <button
               type="button"
               onClick={() => setIsGroupModalOpen(false)}
-              className="px-5 py-2.5 rounded-xl text-sm font-bold border border-black/10 dark:border-white/10 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+              className="px-5 py-2.5 rounded-xl text-sm font-bold border border-ui-ink/10 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!groupNameInput.trim()}
-              className="px-6 py-2.5 rounded-xl text-sm font-bold bg-black dark:bg-white text-white dark:text-black disabled:opacity-40 hover:opacity-90 transition-all shadow-xs"
+              className="ui-button ui-button-primary px-6 py-2.5 rounded-xl text-sm font-bold bg-ui-primary text-ui-primary-text disabled:opacity-40 hover:opacity-90 transition-all shadow-xs"
             >
-              Create Group
+              Save
             </button>
-          </div>
-        </form>
+          </DialogActions>
+        </ValidatedForm>
       </Modal>
 
       {/* Modal for Adding Habit */}
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add habit">
-        <form onSubmit={handleAdd} className="space-y-6">
+        <ValidatedForm id={habitFormId} onSubmit={handleAdd} className="space-y-6">
           <div className="space-y-1">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-black/40 dark:text-white/40">Name</label>
+            <label className="ui-field-label text-[10px] font-bold uppercase tracking-widest text-ui-ink/40">Name</label>
             <input
               type="text"
               value={newName}
               onChange={e => setNewName(e.target.value)}
-              className="w-full text-xl font-medium border-b-2 border-black/10 dark:border-white/10 focus:border-black dark:focus:border-white bg-transparent dark:text-white outline-none pb-1 transition-colors"
+              className="ui-field w-full text-xl font-medium border-b-2 border-ui-ink/10 focus:border-black dark:focus:border-white bg-transparent dark:text-white outline-none pb-1 transition-colors"
               placeholder="Drink water"
               required
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <button
+          <div className="ui-segments">
+            <button aria-pressed={newPeriodicity === 'daily'}
               type="button"
               onClick={() => setNewPeriodicity('daily')}
-              className={cn(
-                "py-3 rounded-xl border font-bold text-sm transition-all",
-                newPeriodicity === 'daily'
-                  ? "border-black dark:border-white bg-black/5 dark:bg-white/5 dark:text-white"
-                  : "border-black/10 dark:border-white/10 text-black/40 dark:text-white/40"
-              )}
+              className="ui-option"
             >
               Daily
             </button>
-            <button
+            <button aria-pressed={newPeriodicity === 'weekly'}
               type="button"
               onClick={() => setNewPeriodicity('weekly')}
-              className={cn(
-                "py-3 rounded-xl border font-bold text-sm transition-all",
-                newPeriodicity === 'weekly'
-                  ? "border-black dark:border-white bg-black/5 dark:bg-white/5 dark:text-white"
-                  : "border-black/10 dark:border-white/10 text-black/40 dark:text-white/40"
-              )}
+              className="ui-option"
             >
               Weekly
             </button>
@@ -1428,7 +1440,7 @@ export const TodayPage: React.FC = () => {
 
           {categories.length > 0 && (
             <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-black/40 dark:text-white/40">Category</label>
+              <label className="ui-field-label text-[10px] font-bold uppercase tracking-widest text-ui-ink/40">Category</label>
               <CategoryDropdown
                 categories={categories}
                 value={newCategoryId}
@@ -1459,15 +1471,15 @@ export const TodayPage: React.FC = () => {
                 onChange={e => setNewGroupName(e.target.value)}
                 placeholder="Enter new group name..."
                 required
-                className="w-full text-sm font-medium border-b-2 border-black/10 dark:border-white/10 focus:border-black dark:focus:border-white bg-transparent dark:text-white outline-none pt-2 pb-1 transition-colors"
+                className="ui-field w-full text-sm font-medium border-b-2 border-ui-ink/10 focus:border-black dark:focus:border-white bg-transparent dark:text-white outline-none pt-2 pb-1 transition-colors"
               />
             )}
           </div>
 
-          <div className="flex items-center justify-between py-2 border-t border-black/5 dark:border-white/5">
+          <div className="flex items-center justify-between py-2 border-t border-ui-border">
             <div>
               <div className="font-bold text-sm dark:text-white">One-off task</div>
-              <div className="text-xs text-black/40 dark:text-white/40">Only for this date/week</div>
+              <div className="ui-meta text-xs text-ui-ink/40">Only for this date/week</div>
             </div>
             <input
               type="checkbox"
@@ -1477,10 +1489,10 @@ export const TodayPage: React.FC = () => {
             />
           </div>
 
-          <div className="flex items-center justify-between py-2 border-t border-black/5 dark:border-white/5">
+          <div className="flex items-center justify-between py-2 border-t border-ui-border">
             <div>
               <div className="font-bold text-sm dark:text-white">Anti-task</div>
-              <div className="text-xs text-black/40 dark:text-white/40">Completed by default</div>
+              <div className="ui-meta text-xs text-ui-ink/40">Completed by default</div>
             </div>
             <input
               type="checkbox"
@@ -1490,10 +1502,10 @@ export const TodayPage: React.FC = () => {
             />
           </div>
 
-          <div className="space-y-1 py-2 border-t border-black/5 dark:border-white/5">
+          <div className="space-y-1 py-2 border-t border-ui-border">
             <div className="flex justify-between items-center mb-1">
-              <label className="font-bold text-sm dark:text-white">Sub-steps</label>
-              <span className="text-xs font-bold text-black/60 dark:text-white/60">{newMultiplicity} {newMultiplicity === 1 ? 'step' : 'steps'}</span>
+              <label className="ui-field-label font-bold text-sm dark:text-white">Sub-steps</label>
+              <span className="ui-meta text-xs font-bold text-ui-ink/60">{newMultiplicity} {newMultiplicity === 1 ? 'step' : 'steps'}</span>
             </div>
             <input
               type="range"
@@ -1505,45 +1517,24 @@ export const TodayPage: React.FC = () => {
             />
           </div>
 
-          {addError && <p className="text-red-500 text-xs font-bold">{addError}</p>}
+          {addError && <p role="alert" className="ui-error text-red-500 text-xs font-bold">{addError}</p>}
 
-          <button
+          <DialogActions form={habitFormId} cancel>
+            <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-4 bg-black dark:bg-white text-white dark:text-black font-bold rounded-2xl shadow-lg hover:opacity-90 transition-opacity"
+            className="ui-button ui-button-primary w-full py-4 bg-ui-primary text-ui-primary-text font-bold rounded-2xl shadow-lg hover:opacity-90 transition-opacity"
           >
-            {isSubmitting ? "Adding..." : "Add habit"}
-          </button>
-        </form>
+            {isSubmitting ? ACTIONS.saving : ACTIONS.save}
+            </button>
+          </DialogActions>
+        </ValidatedForm>
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      <Modal 
-        isOpen={!!deleteConfirm} 
-        onClose={() => setDeleteConfirm(null)} 
-        title="Delete habit"
-      >
-        <div className="space-y-6">
-          <p className="text-black/60 dark:text-white/60 text-sm">
-            Are you sure you want to delete <strong className="text-black dark:text-white">{deleteConfirm?.name}</strong>?
-          </p>
-
-          <div className="flex justify-end gap-3">
-            <button
-              onClick={() => setDeleteConfirm(null)}
-              className="px-5 py-2.5 rounded-xl text-sm font-bold border border-black/10 dark:border-white/10 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={confirmDelete}
-              className="px-5 py-2.5 rounded-xl text-sm font-bold bg-red-500 text-white hover:bg-red-600 transition-colors shadow-xs"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </Modal>
+      <ConfirmDelete open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Delete habit" onConfirm={confirmDelete}>
+        <p>Delete “{deleteConfirm?.name}”?</p>
+      </ConfirmDelete>
 
       {/* Edit Habit Modal */}
       <EditHabitModal

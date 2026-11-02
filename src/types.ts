@@ -82,6 +82,7 @@ export interface DataProvider {
   
   // Period Docs
   getPeriodDoc: (uid: string, periodicity: Periodicity, periodKey: string) => Promise<PeriodDoc | null>;
+  getPeriodDocs?: (uid: string, periodicity: Periodicity, startKey: string, endKey: string) => Promise<Record<string, PeriodDoc>>;
   updatePeriodDoc: (uid: string, periodicity: Periodicity, periodKey: string, data: Partial<PeriodDoc>) => Promise<void>;
   
   // Settings
