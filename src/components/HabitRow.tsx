@@ -37,10 +37,11 @@ export const HabitRow: React.FC<HabitRowProps> = ({
   return (
     <div onClick={() => { if (isGroupingMode) onSelectToggle?.(); }}
       className={cn('habit-card bg-white dark:bg-white/5 rounded-2xl transition-all select-none',
+        (hasSteps || hasWeeklyCount) && 'habit-card-with-controls',
         isReorderMode && 'ring-2 ring-ui-ink/5',
         isGroupingMode && 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/10',
         isGroupingMode && isSelected && 'ring-2 ring-black dark:ring-white bg-ui-section')}>
-      <div className="habit-grid" data-managing={managing}>
+      <div className="habit-grid" data-managing={managing} data-weekly-count={hasWeeklyCount}>
         <div className="habit-control">
           {isGroupingMode ? (
             <ActionButton scope="dailio-habits" type="button" aria-label={`Select ${habit.name}`} aria-pressed={isSelected}
@@ -67,6 +68,15 @@ export const HabitRow: React.FC<HabitRowProps> = ({
               : (habit.isBold ? 'text-orange-500 dark:text-orange-400' : 'text-ui-ink'))}>
           {habit.name}
         </span>
+        {hasWeeklyCount && <div className="habit-weekly-count">
+          {habit.subDone > 1 && <div className="habit-count-prefix">
+            {onDecrementCount && <ActionButton scope="dailio-habits" type="button" onClick={e => { e.stopPropagation(); return onDecrementCount(); }}
+              className="habit-count-button text-ui-ink/60" title="Decrease count (-1)" aria-label="Decrease count"><span className="habit-count-label bg-ui-section">−</span></ActionButton>}
+            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400" title={`${habit.subDone} completions`}>×{habit.subDone}</span>
+          </div>}
+          {onIncrementCount && <ActionButton scope="dailio-habits" type="button" onClick={e => { e.stopPropagation(); return onIncrementCount(); }}
+            className="habit-count-button text-ui-primary-text" title="Add weekly completion (+1 point)" aria-label="Add weekly completion (+1)"><span className="habit-count-label bg-ui-primary">+1</span></ActionButton>}
+        </div>}
         <div className="habit-category-cell">
           {category && <span className="habit-category" title={category.name} style={{ backgroundColor: catColor, color: textColor }}>{category.name}</span>}
         </div>
@@ -77,17 +87,8 @@ export const HabitRow: React.FC<HabitRowProps> = ({
             className="ui-icon-button ui-row-action text-ui-ink/60 hover:text-red-500" title={habit.isOneOff ? 'Delete task' : 'Delete habit'} aria-label={habit.isOneOff ? 'Delete task' : 'Delete habit'}><Trash2 size={16} /></ActionButton>
         </div>}
       </div>
-      {(habit.isAntiTask || hasWeeklyCount) && <div className="habit-secondary">
-        {habit.isAntiTask && <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20" title="Anti-task to avoid">Anti-task</span>}
-        {hasWeeklyCount && <div className="habit-weekly-count">
-          {habit.subDone > 1 && <>
-            {onDecrementCount && <ActionButton scope="dailio-habits" type="button" onClick={e => { e.stopPropagation(); return onDecrementCount(); }}
-              className="habit-count-button bg-ui-section text-ui-ink/60" title="Decrease count (-1)" aria-label="Decrease count">−</ActionButton>}
-            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400" title={`${habit.subDone} completions`}>×{habit.subDone}</span>
-          </>}
-          {onIncrementCount && <ActionButton scope="dailio-habits" type="button" onClick={e => { e.stopPropagation(); return onIncrementCount(); }}
-            className="habit-count-button bg-ui-primary text-ui-primary-text" title="Add weekly completion (+1 point)" aria-label="Add weekly completion (+1)">+1</ActionButton>}
-        </div>}
+      {habit.isAntiTask && <div className="habit-secondary">
+        <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20" title="Anti-task to avoid">Anti-task</span>
       </div>}
       {hasSteps && <div className="habit-secondary habit-steps">
         <span className="habit-step-count ui-meta">{habit.subDone}/{habit.multiplicity}</span>

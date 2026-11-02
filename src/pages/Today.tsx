@@ -1111,7 +1111,7 @@ export const TodayPage: React.FC = () => {
                 }
               }}
               className={cn(
-                "p-2 rounded-xl transition-all flex items-center gap-1.5",
+                "ui-compact-control p-2 rounded-xl transition-all flex items-center justify-center gap-1.5",
                 isGroupingModeDaily 
                   ? "bg-ui-primary text-ui-primary-text shadow-xs"
                   : "text-ui-ink/20 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
@@ -1247,7 +1247,7 @@ export const TodayPage: React.FC = () => {
                 }
               }}
               className={cn(
-                "p-2 rounded-xl transition-all flex items-center gap-1.5",
+                "ui-compact-control p-2 rounded-xl transition-all flex items-center justify-center gap-1.5",
                 isGroupingModeWeekly 
                   ? "bg-ui-primary text-ui-primary-text shadow-xs"
                   : "text-ui-ink/20 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"

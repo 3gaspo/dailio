@@ -1,3 +1,4 @@
+import { ActionButton } from '@3gaspo/app-ui/ActionButton';
 import { formatPercent } from '@3gaspo/app-ui/formats';
 import { ValidatedForm } from '../components/ValidatedForm';
 import { SettingsSwitch } from '../components/SettingsSwitch';
@@ -108,12 +109,10 @@ export const SettingsPage: React.FC = () => {
     setLoading(true);
     try {
       await data.resetData(user.uid, option);
+      setIsResetModalOpen(false);
       window.location.reload();
-    } catch (err: any) {
-      setError(err.message);
     } finally {
       setLoading(false);
-      setIsResetModalOpen(false);
     }
   };
 
@@ -339,33 +338,34 @@ export const SettingsPage: React.FC = () => {
         isOpen={isResetModalOpen} 
         onClose={() => setIsResetModalOpen(false)} 
         title="Reset data"
+        busy={loading}
       >
         <div className="space-y-4">
           <DialogActions>
-            <button
+            <ActionButton scope="dailio-reset" busyLabel="Resetting…"
               onClick={() => handleReset('history')}
               disabled={loading}
               className="w-full flex items-center justify-center gap-3 p-5 bg-black/5 rounded-2xl hover:bg-black hover:text-white transition-all group font-bold"
             >
               <History size={20} />
               <span>Clear History</span>
-            </button>
+            </ActionButton>
 
-            <button
+            <ActionButton scope="dailio-reset" busyLabel="Resetting…"
               onClick={() => handleReset('all')}
               disabled={loading}
               className="w-full flex items-center justify-center gap-3 p-5 bg-red-500/10 rounded-2xl hover:bg-red-500 hover:text-white transition-all group font-bold text-red-600"
             >
               <Trash2 size={20} />
               <span>Reset All</span>
-            </button>
+            </ActionButton>
 
-            <button
+            <ActionButton scope="dailio-reset"
               onClick={() => setIsResetModalOpen(false)}
               className="w-full py-4 text-sm font-bold text-ui-ink/40 hover:text-black dark:hover:text-white transition-colors"
             >
               Cancel
-            </button>
+            </ActionButton>
           </DialogActions>
         </div>
       </Modal>
