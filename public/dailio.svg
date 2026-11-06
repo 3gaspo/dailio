@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="dailio : icône gris-blanc sur fond noir">
+  <rect x="0" y="0" width="512" height="512" fill="#000000"/>
+  <g transform="translate(12 0)">
+  <path d="M130 113 H215 C325 113 382 175 382 256 C382 337 325 399 215 399 H130 Z" fill="none" stroke="#d9d9d9" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <path transform="translate(-12 0)" d="M216 264 Q230 278 244 292 Q271 260 302 222" fill="none" stroke="#d9d9d9" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

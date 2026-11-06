@@ -384,8 +384,8 @@ export const SettingsPage: React.FC = () => {
         </div>
         
         <img 
-          src="/sakura.svg" 
-          alt="Sakura" 
+          src="/gaspo_logo.svg"
+          alt="Gaspo Logo"
           className="w-40 h-40 opacity-100 transition-all duration-700 -my-4" 
           referrerPolicy="no-referrer"
         />
