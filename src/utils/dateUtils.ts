@@ -1,4 +1,4 @@
-import { format, startOfISOWeek, getISOWeek, getYear } from 'date-fns';
+import { format, startOfISOWeek, getISOWeek, getISOWeekYear } from 'date-fns';
 
 export const getDailyKey = (date: Date = new Date()) => {
   return format(date, 'yyyy-MM-dd');
@@ -6,7 +6,7 @@ export const getDailyKey = (date: Date = new Date()) => {
 
 export const getWeeklyKey = (date: Date = new Date()) => {
   const week = getISOWeek(date);
-  const year = getYear(startOfISOWeek(date));
+  const year = getISOWeekYear(date);
   return `${year}-W${week.toString().padStart(2, '0')}`;
 };
 

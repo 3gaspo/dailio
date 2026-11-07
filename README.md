@@ -88,6 +88,8 @@ Une période passée sans données saisies est considérée absente automatiquem
 
 L’accueil charge les habitudes courantes avant l’accentuation issue de l’historique. Les lectures historiques sont regroupées par plage de périodes. Le calendrier, les statistiques et les paramètres sont chargés à la demande.
 
+Les clés hebdomadaires utilisent l’année ISO : le 29 décembre 2025 appartient à `2026-W01`. Les anciennes clés écrites avec une année incorrecte sont conservées ; aucune migration automatique n’est effectuée, car une même clé peut déjà contenir des saisies de deux semaines différentes. Une reprise de ces données nécessite une sauvegarde et une vérification des collisions.
+
 ## Interface partagée
 
 L’application utilise `@3gaspo/app-ui`, actuellement en version 0.1.8, pour la navigation, les titres, dialogues, formulaires, commandes, retours d’état et formats visibles. L’interface utilise Inter et des thèmes clair et sombre communs. Les dates affichées utilisent `en-GB` et les heures le format 24 h ; les formats de stockage et d’export restent propres à l’application.

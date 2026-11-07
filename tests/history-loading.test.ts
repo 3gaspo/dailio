@@ -58,7 +58,7 @@ test('replaces 112 sequential daily/weekly reads with two range queries for empt
   assert.deepEqual(current.calls, { single: 0, bulk: 2 });
 });
 
-test('keeps existing weekly keys and history behavior at year boundaries', async () => {
+test('keeps single and range weekly reads equivalent at year boundaries', async () => {
   for (const date of [new Date(2020, 0, 3, 12), new Date(2021, 0, 6, 12), new Date(2026, 0, 2, 12)]) {
     const docs = { [getWeeklyKey(subWeeks(date, 2))]: period({ isAbsent: false }) };
     const expected = await getUncompletedHabitsFromPreviousPeriod(provider(docs, false).data, 'user', 'weekly', [habit('weekly', 'weekly')], date);
