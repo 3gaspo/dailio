@@ -1,3 +1,4 @@
+import { DataLoadError, StateFeedback } from '../components/StateFeedback';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { AuthProvider, Category, DataProvider, User, UserSettings } from '../types';
 import { LocalAuthProvider } from './LocalAuthProvider';
@@ -16,6 +17,8 @@ interface AppContextType {
   isDevMode: boolean;
   loading: boolean;
   settingsError: string | null;
+  loadError: boolean;
+  reportLoadError: (error: unknown) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -30,14 +33,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     isDevMode: boolean;
     loading: boolean;
   } | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const reportLoadError = (error: unknown) => {
+    console.error('Could not load Dailio data:', error);
+    setLoadError(true);
+  };
   const settingsWrites = useRef<Promise<void>>(Promise.resolve());
   const settingsVersion = useRef(0);
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
   const refreshCategories = async () => {
     if (!state?.user) return;
-    const cats = await state.data.getCategories(state.user.uid);
-    setState(prev => prev ? { ...prev, categories: cats } : null);
+    try {
+      const cats = await state.data.getCategories(state.user.uid);
+      setState(prev => prev ? { ...prev, categories: cats } : null);
+    } catch (error) { reportLoadError(error); }
   };
 
   const updateSettings = async (newSettings: Partial<UserSettings>) => {
@@ -60,31 +70,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   useEffect(() => {
-    const hasFirebase = !!import.meta.env.VITE_FIREBASE_API_KEY;
-    const auth = hasFirebase ? new FirebaseAuthProvider() : new LocalAuthProvider();
-    const data = hasFirebase ? new FirestoreDataProvider() : new LocalDataProvider();
+    let active = true;
+    let version = 0;
+    let unsubscribe = () => {};
+    try {
+      const hasFirebase = !!import.meta.env.VITE_FIREBASE_API_KEY;
+      const auth = hasFirebase ? new FirebaseAuthProvider() : new LocalAuthProvider();
+      const data = hasFirebase ? new FirestoreDataProvider() : new LocalDataProvider();
 
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      let categories: Category[] = [];
-      let settings: UserSettings = { dailyObjective: 0.8, weeklyObjective: 0.8, theme: 'light' };
-      if (user) {
-        [categories, settings] = await Promise.all([
-          data.getCategories(user.uid),
-          data.getSettings(user.uid)
-        ]);
-      }
-      setState({
-        auth,
-        data,
-        user,
-        categories,
-        settings,
-        isDevMode: !hasFirebase,
-        loading: false
-      });
-    });
+      unsubscribe = auth.onAuthStateChanged(async (user) => {
+        const current = ++version;
+        try {
+          let categories: Category[] = [];
+          let settings: UserSettings = { dailyObjective: 0.8, weeklyObjective: 0.8, theme: 'light' };
+          if (user) {
+            [categories, settings] = await Promise.all([
+              data.getCategories(user.uid),
+              data.getSettings(user.uid)
+            ]);
+          }
+          if (!active || current !== version) return;
+          setLoadError(false);
+          setState({
+            auth,
+            data,
+            user,
+            categories,
+            settings,
+            isDevMode: !hasFirebase,
+            loading: false
+          });
+        } catch (error) { if (active && current === version) reportLoadError(error); }
+      }, error => { if (active) reportLoadError(error); });
+    } catch (error) { reportLoadError(error); }
 
-    return unsubscribe;
+    return () => { active = false; unsubscribe(); };
   }, []);
 
   useEffect(() => {
@@ -97,10 +117,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [state?.settings.theme]);
 
-  if (!state) return null;
+  if (!state) return <div className="app-page">{loadError ? <DataLoadError /> : <StateFeedback kind="loading" />}</div>;
 
   return (
-    <AppContext.Provider value={{ ...state, refreshCategories, updateSettings, settingsError }}>
+    <AppContext.Provider value={{ ...state, refreshCategories, updateSettings, settingsError, loadError, reportLoadError }}>
       {children}
     </AppContext.Provider>
   );

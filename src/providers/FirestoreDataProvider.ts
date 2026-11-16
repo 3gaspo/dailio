@@ -133,6 +133,7 @@ export class FirestoreDataProvider implements DataProvider {
       
       const categories = await getDocs(collection(this.db, 'users', uid, 'categories'));
       categories.forEach(d => batch.delete(d.ref));
+      batch.set(doc(this.db, 'users', uid, 'settings', 'general'), { categoriesInitialized: false }, { merge: true });
     } else {
       // history only: update habits createdAt to "now"
       // so they don't show up as red in the past.
@@ -155,7 +156,13 @@ export class FirestoreDataProvider implements DataProvider {
   async getCategories(uid: string): Promise<Category[]> {
     const col = collection(this.db, 'users', uid, 'categories');
     const snap = await getDocs(col);
-    if (snap.empty) {
+    const settingsRef = doc(this.db, 'users', uid, 'settings', 'general');
+    const settings = await getDoc(settingsRef);
+    // The account marker survives deletion of the final category and syncs across devices.
+    const initialize = !settings.exists() || settings.data().categoriesInitialized === false;
+    if (snap.empty && initialize) {
+      const habits = await getDocs(collection(this.db, 'users', uid, 'habits'));
+      const firstConnection = settings.exists() || habits.empty;
       const defaults = [
         { name: 'Chores', color: '#EAB308' },
         { name: 'Sport', color: '#F97316' },
@@ -167,12 +174,13 @@ export class FirestoreDataProvider implements DataProvider {
       ];
       const batch = writeBatch(this.db);
       const created: Category[] = [];
-      for (const item of defaults) {
-        const newDoc = doc(col);
+      for (const item of firstConnection ? defaults : []) {
+        const newDoc = doc(col, `cat_${item.name.toLowerCase()}`);
         const cat = { id: newDoc.id, name: item.name, color: item.color };
         batch.set(newDoc, cleanData({ name: item.name, color: item.color }));
         created.push(cat);
       }
+      batch.set(settingsRef, { categoriesInitialized: true }, { merge: true });
       await batch.commit();
       return created;
     }
@@ -185,14 +193,8 @@ export class FirestoreDataProvider implements DataProvider {
       } as Category;
     });
 
-    const migrationKey = `dailio_${uid}_firestore_hygiene_v1`;
-    if (typeof window !== 'undefined' && !localStorage.getItem(migrationKey)) {
-      if (!categories.some(c => c.name.toLowerCase() === 'hygiene' || c.name.toLowerCase() === 'hygiène')) {
-        const newDoc = doc(col);
-        await setDoc(newDoc, cleanData({ name: 'Hygiene', color: '#14B8A6' }));
-        categories.push({ id: newDoc.id, name: 'Hygiene', color: '#14B8A6' });
-      }
-      localStorage.setItem(migrationKey, 'true');
+    if (settings.data()?.categoriesInitialized !== true) {
+      await setDoc(settingsRef, { categoriesInitialized: true }, { merge: true });
     }
 
     return categories;

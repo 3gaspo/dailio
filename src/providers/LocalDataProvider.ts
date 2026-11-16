@@ -131,8 +131,9 @@ export class LocalDataProvider implements DataProvider {
 
   async getCategories(uid: string): Promise<Category[]> {
     const data = localStorage.getItem(this.getStorageKey(uid, 'categories'));
-    if (!data) {
-      const defaults = [
+    if (data === null) {
+      const existingAccount = localStorage.getItem(this.getStorageKey(uid, 'settings')) !== null || localStorage.getItem(this.getStorageKey(uid, 'habits')) !== null;
+      const defaults = existingAccount ? [] : [
         { id: 'cat_chores', name: 'Chores', color: '#EAB308' },
         { id: 'cat_sport', name: 'Sport', color: '#F97316' },
         { id: 'cat_culture', name: 'Culture', color: '#22C55E' },
@@ -145,14 +146,6 @@ export class LocalDataProvider implements DataProvider {
       return defaults;
     }
     const parsed: Category[] = JSON.parse(data);
-    const migrationKey = this.getStorageKey(uid, 'hygiene_added_v1');
-    if (!localStorage.getItem(migrationKey)) {
-      if (!parsed.some(c => c.name.toLowerCase() === 'hygiene' || c.name.toLowerCase() === 'hygiène')) {
-        parsed.push({ id: 'cat_hygiene', name: 'Hygiene', color: '#14B8A6' });
-        localStorage.setItem(this.getStorageKey(uid, 'categories'), JSON.stringify(parsed));
-      }
-      localStorage.setItem(migrationKey, 'true');
-    }
     return parsed.map(c => ({
       ...c,
       color: c.color || getCategoryDefaultColor(c.name)

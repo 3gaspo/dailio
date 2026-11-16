@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { CheckCircle2, Calendar, BarChart3, Settings } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 import { useApp } from '../providers/AppProvider';
-import { StateFeedback } from './StateFeedback';
+import { StateFeedback, DataLoadError } from './StateFeedback';
 const AuthWindow = lazy(() => import('./AuthWindow').then(module => ({ default: module.AuthWindow })));
 import { BottomNavigation } from './BottomNavigation';
 
@@ -15,10 +15,10 @@ const items = [
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
-  const { user } = useApp();
+  const { user, loadError } = useApp();
   return <div className="app-shell bg-ui-page text-ui-text font-sans transition-colors duration-300">
     {!user && <ScreenBoundary><Suspense fallback={<StateFeedback kind="loading" />}><AuthWindow /></Suspense></ScreenBoundary>}
-    <main className="app-page">{children}</main>
+    <main className="app-page">{loadError ? <DataLoadError /> : children}</main>
     <BottomNavigation items={items} />
   </div>;
 }

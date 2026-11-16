@@ -45,7 +45,7 @@ export class LocalAuthProvider implements AuthProvider {
     this.notify();
   }
 
-  onAuthStateChanged(callback: (user: User | null) => void) {
+  onAuthStateChanged(callback: (user: User | null) => void, _onError?: (error: unknown) => void) {
     this.listeners.push(callback);
     callback(this.user);
     return () => {

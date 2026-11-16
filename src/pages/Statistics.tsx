@@ -32,7 +32,7 @@ import {
 } from 'recharts';
 
 export const StatisticsPage: React.FC = () => {
-  const { user, data, categories, settings } = useApp();
+  const { user, data, categories, settings, reportLoadError } = useApp();
   const [view, setView] = useState<'daily' | 'weekly'>(() => {
     return (localStorage.getItem('dailio_stats_view') as 'daily' | 'weekly') || 'daily';
   });
@@ -52,30 +52,31 @@ export const StatisticsPage: React.FC = () => {
       setLoading(false);
       return;
     }
-    const h = await data.getHabits(user.uid);
-    setHabits(h);
+    try {
+      const h = await data.getHabits(user.uid);
+      setHabits(h);
     
-    const docs: Record<string, PeriodDoc> = {};
-    const start = startOfYear(new Date());
-    const end = new Date();
+      const docs: Record<string, PeriodDoc> = {};
+      const start = startOfYear(new Date());
+      const end = new Date();
 
-    if (view === 'daily') {
-      const days = eachDayOfInterval({ start, end });
-      await Promise.all(days.map(async d => {
-        const key = getDailyKey(d);
-        const doc = await data.getPeriodDoc(user.uid, 'daily', key);
-        if (doc) docs[key] = doc;
-      }));
-    } else {
-      const weeks = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
-      await Promise.all(weeks.map(async w => {
-        const key = getWeeklyKey(w);
-        const doc = await data.getPeriodDoc(user.uid, 'weekly', key);
-        if (doc) docs[key] = doc;
-      }));
-    }
-    setPeriodDocs(docs);
-    setLoading(false);
+      if (view === 'daily') {
+        const days = eachDayOfInterval({ start, end });
+        await Promise.all(days.map(async d => {
+          const key = getDailyKey(d);
+          const doc = await data.getPeriodDoc(user.uid, 'daily', key);
+          if (doc) docs[key] = doc;
+        }));
+      } else {
+        const weeks = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
+        await Promise.all(weeks.map(async w => {
+          const key = getWeeklyKey(w);
+          const doc = await data.getPeriodDoc(user.uid, 'weekly', key);
+          if (doc) docs[key] = doc;
+        }));
+      }
+      setPeriodDocs(docs);
+    } catch (error) { reportLoadError(error); } finally { setLoading(false); }
   };
 
   useEffect(() => {

@@ -90,9 +90,15 @@ L’accueil charge les habitudes courantes avant l’accentuation issue de l’h
 
 Les clés hebdomadaires utilisent l’année ISO : le 29 décembre 2025 appartient à `2026-W01`. Les anciennes clés écrites avec une année incorrecte sont conservées ; aucune migration automatique n’est effectuée, car une même clé peut déjà contenir des saisies de deux semaines différentes. Une reprise de ces données nécessite une sauvegarde et une vérification des collisions.
 
+## Chargement et données initiales
+
+Un échec de lecture affiche un message bref avec la commande `Reload page`, sans présenter une fausse liste vide. Le rechargement relance la lecture des données existantes. Les échecs d'enregistrement conservent leurs messages et parcours de nouvelle tentative dans le formulaire ou l'action concernés.
+
+Les catégories par défaut sont ajoutées à la première connexion. Les suppressions sont conservées dans le stockage choisi, y compris si toutes les catégories sont supprimées. Une reconnexion ou un autre client Firebase ne complète pas automatiquement la liste ; les habitudes et leur historique sont conservés. Seule une réinitialisation complète explicite rétablit les catégories initiales.
+
 ## Interface partagée
 
-L’application utilise `@3gaspo/app-ui`, actuellement en version 0.1.8, pour la navigation, les titres, dialogues, formulaires, commandes, retours d’état et formats visibles. L’interface utilise Inter et des thèmes clair et sombre communs. Les dates affichées utilisent `en-GB` et les heures le format 24 h ; les formats de stockage et d’export restent propres à l’application.
+L’application utilise `@3gaspo/app-ui`, actuellement en version 0.1.9, pour la navigation, les titres, dialogues, formulaires, commandes, retours d’état et formats visibles. L’interface utilise Inter et des thèmes clair et sombre communs. Les dates affichées utilisent `en-GB` et les heures le format 24 h ; les formats de stockage et d’export restent propres à l’application.
 
 L’archive est incluse dans [vendor/](vendor/) et référencée par `package.json` et `package-lock.json`. Ce dépôt est installable et déployable seul : aucun accès au dépôt source voisin `app-ui` ni à un registre privé n’est nécessaire. Relancer `npm ci` après un pull qui change les dépendances. La vérification du package partagé s’exécute automatiquement avant le build.
 

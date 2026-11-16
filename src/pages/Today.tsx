@@ -1,7 +1,7 @@
 import { ConfirmDelete } from '@3gaspo/app-ui/ConfirmDelete';
 import { ACTIONS } from '@3gaspo/app-ui/labels';
 import { ValidatedForm } from '../components/ValidatedForm';
-import { StateFeedback } from '../components/StateFeedback';
+import { StateFeedback, DataLoadError } from '../components/StateFeedback';
 import React, { useEffect, useState, useMemo, useRef, useId } from 'react';
 import { useApp } from '../providers/AppProvider';
 import { getDailyKey, getWeeklyKey } from '../utils/dateUtils';
@@ -104,6 +104,7 @@ export const TodayPage: React.FC = () => {
   const [weeklyDoc, setWeeklyDoc] = useState<PeriodDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [historyLoadError, setHistoryLoadError] = useState(false);
   const loadVersion = useRef(0);
   
   // Reordering mode
@@ -164,6 +165,7 @@ export const TodayPage: React.FC = () => {
       return;
     }
     setLoadError(false);
+    setHistoryLoadError(false);
     try {
       const [h, d, w, settings] = await Promise.all([
         data.getHabits(user.uid),
@@ -223,6 +225,7 @@ export const TodayPage: React.FC = () => {
         setUncompletedPrevWeeklyHabitIds(uncompletedWeekly);
       } catch (error) {
         console.error('Failed to load previous periods:', error);
+        if (version === loadVersion.current) setHistoryLoadError(true);
       }
     } catch (error) {
       if (version !== loadVersion.current) return;
@@ -1063,15 +1066,14 @@ export const TodayPage: React.FC = () => {
     );
   }
 
-  if (loadError) return <StateFeedback kind="error">
-    <button type="button" onClick={() => fetchData()} className="ui-button ui-button-primary bg-ui-primary text-ui-primary-text px-4 py-2 rounded-xl">Retry</button>
-  </StateFeedback>;
+  if (loadError) return <DataLoadError />;
 
   return (
     <div className="app-home-content min-w-0">
       <header className="app-home-header">
         <h1 className="app-brand-title">Dailio</h1>
       </header>
+      {historyLoadError && <DataLoadError />}
       {/* Category Filter */}
       {categories.length > 0 && (
         <div className="mb-8">

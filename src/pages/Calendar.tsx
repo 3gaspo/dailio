@@ -15,7 +15,7 @@ import { motion } from 'motion/react';
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, addMonths, subMonths, isSameMonth, isSameDay, startOfYear, endOfYear, eachWeekOfInterval, getISOWeek, getYear, isBefore, isAfter, startOfDay, isSameWeek } from 'date-fns';
 
 export const CalendarPage: React.FC = () => {
-  const { user, data, settings } = useApp();
+  const { user, data, settings, reportLoadError } = useApp();
   const [view, setView] = useState<'daily' | 'weekly'>(() => {
     return (localStorage.getItem('dailio_calendar_view') as 'daily' | 'weekly') || 'daily';
   });
@@ -38,33 +38,34 @@ export const CalendarPage: React.FC = () => {
       setLoading(false);
       return;
     }
-    const h = await data.getHabits(user.uid);
-    setHabits(h);
-    const cats = await data.getCategories(user.uid);
-    setCategories(cats);
+    try {
+      const h = await data.getHabits(user.uid);
+      setHabits(h);
+      const cats = await data.getCategories(user.uid);
+      setCategories(cats);
     
-    const docs: Record<string, PeriodDoc> = {};
-    if (view === 'daily') {
-      const start = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 });
-      const end = endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 1 });
-      const days = eachDayOfInterval({ start, end });
-      await Promise.all(days.map(async d => {
-        const key = getDailyKey(d);
-        const doc = await data.getPeriodDoc(user.uid, 'daily', key);
-        if (doc) docs[key] = doc;
-      }));
-    } else {
-      const start = startOfYear(new Date());
-      const end = endOfYear(new Date());
-      const weeks = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
-      await Promise.all(weeks.map(async w => {
-        const key = getWeeklyKey(w);
-        const doc = await data.getPeriodDoc(user.uid, 'weekly', key);
-        if (doc) docs[key] = doc;
-      }));
-    }
-    setPeriodDocs(docs);
-    setLoading(false);
+      const docs: Record<string, PeriodDoc> = {};
+      if (view === 'daily') {
+        const start = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 });
+        const end = endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 1 });
+        const days = eachDayOfInterval({ start, end });
+        await Promise.all(days.map(async d => {
+          const key = getDailyKey(d);
+          const doc = await data.getPeriodDoc(user.uid, 'daily', key);
+          if (doc) docs[key] = doc;
+        }));
+      } else {
+        const start = startOfYear(new Date());
+        const end = endOfYear(new Date());
+        const weeks = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
+        await Promise.all(weeks.map(async w => {
+          const key = getWeeklyKey(w);
+          const doc = await data.getPeriodDoc(user.uid, 'weekly', key);
+          if (doc) docs[key] = doc;
+        }));
+      }
+      setPeriodDocs(docs);
+    } catch (error) { reportLoadError(error); } finally { setLoading(false); }
   };
 
   useEffect(() => {

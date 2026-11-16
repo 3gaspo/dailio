@@ -56,7 +56,7 @@ export interface AuthProvider {
   signIn: (email: string, pass: string) => Promise<void>;
   signUp: (email: string, pass: string) => Promise<void>;
   signOut: () => Promise<void>;
-  onAuthStateChanged: (callback: (user: User | null) => void) => () => void;
+  onAuthStateChanged: (callback: (user: User | null) => void, onError?: (error: unknown) => void) => () => void;
 }
 
 export type ResetOption = 'history' | 'all';
@@ -65,6 +65,7 @@ export interface UserSettings {
   dailyObjective: number; // 0 to 1
   weeklyObjective: number; // 0 to 1
   theme?: 'light' | 'dark';
+  categoriesInitialized?: boolean;
   defaultDailyHabitOrder?: string[];
   defaultDailyTaskGroups?: TaskGroup[];
   defaultWeeklyHabitOrder?: string[];

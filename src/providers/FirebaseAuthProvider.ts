@@ -36,9 +36,9 @@ export class FirebaseAuthProvider implements AuthProvider {
     await signOut(this.auth);
   }
 
-  onAuthStateChanged(callback: (user: User | null) => void) {
+  onAuthStateChanged(callback: (user: User | null) => void, onError?: (error: unknown) => void) {
     return onAuthStateChanged(this.auth, (u) => {
       callback(u ? { uid: u.uid, email: u.email } : null);
-    });
+    }, onError);
   }
 }
