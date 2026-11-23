@@ -36,7 +36,8 @@ export const HabitRow: React.FC<HabitRowProps> = ({
 
   return (
     <div onClick={() => { if (isGroupingMode) onSelectToggle?.(); }}
-      className={cn('habit-card bg-white dark:bg-white/5 rounded-2xl transition-all select-none',
+      className={cn('habit-card bg-white dark:bg-white/5 rounded-2xl select-none',
+        !isReorderMode && (isGroupingMode ? 'ui-interactive-surface' : 'ui-interactive-surface--actions'),
         (hasSteps || hasWeeklyCount) && 'habit-card-with-controls',
         isReorderMode && 'ring-2 ring-ui-ink/5',
         isGroupingMode && 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/10',
@@ -62,7 +63,7 @@ export const HabitRow: React.FC<HabitRowProps> = ({
           )}
         </div>
         <span title={emphasis ? `${habit.name} — ${emphasis}` : habit.name}
-          className={cn('habit-name', habit.isBold ? 'font-bold' : 'font-medium',
+          className={cn('habit-name', habit.isBold ? 'font-bold' : 'font-semibold',
             habit.completed && !isGroupingMode
               ? (habit.isBold ? 'text-orange-500/40 dark:text-orange-400/40 line-through' : 'text-ui-ink/30 line-through')
               : (habit.isBold ? 'text-orange-500 dark:text-orange-400' : 'text-ui-ink'))}>

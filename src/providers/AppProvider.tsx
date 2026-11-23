@@ -1,4 +1,5 @@
 import { DataLoadError, StateFeedback } from '../components/StateFeedback';
+import { DEFAULT_THEME } from '@3gaspo/app-ui/themePreference';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { AuthProvider, Category, DataProvider, User, UserSettings } from '../types';
 import { LocalAuthProvider } from './LocalAuthProvider';
@@ -82,7 +83,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const current = ++version;
         try {
           let categories: Category[] = [];
-          let settings: UserSettings = { dailyObjective: 0.8, weeklyObjective: 0.8, theme: 'light' };
+          let settings: UserSettings = { dailyObjective: 0.8, weeklyObjective: 0.8, theme: DEFAULT_THEME };
           if (user) {
             [categories, settings] = await Promise.all([
               data.getCategories(user.uid),
@@ -108,13 +109,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   useEffect(() => {
-    if (state?.settings.theme === 'dark') {
-      document.documentElement.classList.add('dark');
-      document.documentElement.style.colorScheme = 'dark';
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.style.colorScheme = 'light';
-    }
+    const theme = state?.settings.theme ?? DEFAULT_THEME;
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    document.documentElement.style.colorScheme = theme;
   }, [state?.settings.theme]);
 
   if (!state) return <div className="app-page">{loadError ? <DataLoadError /> : <StateFeedback kind="loading" />}</div>;

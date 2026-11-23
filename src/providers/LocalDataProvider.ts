@@ -1,5 +1,6 @@
 import { DataProvider, Habit, PeriodDoc, Periodicity, Category, UserSettings, ResetOption } from '../types';
 import { getCategoryDefaultColor } from '../utils/categoryUtils';
+import { DEFAULT_THEME } from '@3gaspo/app-ui/themePreference';
 
 export class LocalDataProvider implements DataProvider {
   private getStorageKey(uid: string, type: string) {
@@ -9,10 +10,10 @@ export class LocalDataProvider implements DataProvider {
   async getSettings(uid: string): Promise<UserSettings> {
     const data = localStorage.getItem(this.getStorageKey(uid, 'settings'));
     if (!data) {
-      return { dailyObjective: 0.8, weeklyObjective: 0.8, theme: 'light' };
+      return { dailyObjective: 0.8, weeklyObjective: 0.8, theme: DEFAULT_THEME };
     }
     const settings = JSON.parse(data);
-    if (!settings.theme) settings.theme = 'light';
+    if (!settings.theme) settings.theme = DEFAULT_THEME;
     return settings;
   }
 

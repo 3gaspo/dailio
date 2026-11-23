@@ -1,5 +1,6 @@
 import { ConfirmDelete } from '@3gaspo/app-ui/ConfirmDelete';
 import { ACTIONS } from '@3gaspo/app-ui/labels';
+import { useLocalDay } from '@3gaspo/app-ui/useLocalDay';
 import { ValidatedForm } from '../components/ValidatedForm';
 import { StateFeedback, DataLoadError } from '../components/StateFeedback';
 import React, { useEffect, useState, useMemo, useRef, useId } from 'react';
@@ -99,6 +100,8 @@ export const TodayPage: React.FC = () => {
   const habitFormId = useId();
   const groupFormId = useId();
   const { user, data, categories, settings } = useApp();
+  const today = useLocalDay();
+  const [loadedPeriod, setLoadedPeriod] = useState('');
   const [habits, setHabits] = useState<Habit[]>([]);
   const [dailyDoc, setDailyDoc] = useState<PeriodDoc | null>(null);
   const [weeklyDoc, setWeeklyDoc] = useState<PeriodDoc | null>(null);
@@ -152,8 +155,15 @@ export const TodayPage: React.FC = () => {
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
   const [newGroupName, setNewGroupName] = useState<string>('');
 
-  const dailyKey = getDailyKey();
-  const weeklyKey = getWeeklyKey();
+  const dailyKey = getDailyKey(today);
+  const weeklyKey = getWeeklyKey(today);
+  const period = `${user?.uid}:${dailyKey}:${weeklyKey}`;
+  const assertCurrentPeriod = () => {
+    if (loadedPeriod !== period || dailyKey !== getDailyKey() || weeklyKey !== getWeeklyKey()) {
+      window.dispatchEvent(new Event('focus'));
+      throw new Error('The day has changed. Try again when loading finishes.');
+    }
+  };
 
   const [uncompletedPrevDailyHabitIds, setUncompletedPrevDailyHabitIds] = useState<Set<string>>(new Set());
   const [uncompletedPrevWeeklyHabitIds, setUncompletedPrevWeeklyHabitIds] = useState<Set<string>>(new Set());
@@ -174,6 +184,10 @@ export const TodayPage: React.FC = () => {
         initialSettings ?? data.getSettings(user.uid)
       ]);
       if (version !== loadVersion.current) return;
+      if (dailyKey !== getDailyKey() || weeklyKey !== getWeeklyKey()) {
+        window.dispatchEvent(new Event('focus'));
+        return;
+      }
       setHabits(h);
 
       const loadedDailyGroups = d?.taskGroups ?? settings?.defaultDailyTaskGroups ?? [];
@@ -210,9 +224,12 @@ export const TodayPage: React.FC = () => {
 
       setDailyDoc(finalDailyDoc);
       setWeeklyDoc(finalWeeklyDoc);
+      setLocalDailyHabits([]);
+      setLocalWeeklyHabits([]);
       setDailyTaskGroups(loadedDailyGroups);
       setWeeklyTaskGroups(loadedWeeklyGroups);
 
+      setLoadedPeriod(period);
       setLoading(false);
       // Historical emphasis is secondary; today's tasks are already usable.
       try {
@@ -238,7 +255,7 @@ export const TodayPage: React.FC = () => {
   useEffect(() => {
     fetchData(settings);
     return () => { loadVersion.current++; };
-  }, [user, data]);
+  }, [user, data, dailyKey, weeklyKey]);
 
   const dailyStats = useMemo(() => 
     computePeriodStats(dailyKey, 'daily', habits, dailyDoc),
@@ -304,6 +321,7 @@ export const TodayPage: React.FC = () => {
     habitOrder?: string[]
   ) => {
     if (!user) return;
+    assertCurrentPeriod();
     const key = periodicity === 'daily' ? dailyKey : weeklyKey;
     const doc = periodicity === 'daily' ? dailyDoc : weeklyDoc;
     const stats = periodicity === 'daily' ? dailyStats : weeklyStats;
@@ -365,6 +383,7 @@ export const TodayPage: React.FC = () => {
   const handleConfirmCreateGroup = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!user) return;
+    assertCurrentPeriod();
     const periodicity = targetGroupPeriodicity;
     const doc = periodicity === 'daily' ? dailyDoc : weeklyDoc;
     const stats = periodicity === 'daily' ? dailyStats : weeklyStats;
@@ -403,6 +422,7 @@ export const TodayPage: React.FC = () => {
   // --- Task Group Operations ---
   const handleToggleGroup = async (group: TaskGroup, periodicity: 'daily' | 'weekly') => {
     if (!user) return;
+    assertCurrentPeriod();
     const key = periodicity === 'daily' ? dailyKey : weeklyKey;
     const doc = periodicity === 'daily' ? dailyDoc : weeklyDoc;
     const stats = periodicity === 'daily' ? dailyStats : weeklyStats;
@@ -436,6 +456,7 @@ export const TodayPage: React.FC = () => {
 
   const handleUngroup = async (groupId: string, periodicity: 'daily' | 'weekly') => {
     if (!user) return;
+    assertCurrentPeriod();
     const doc = periodicity === 'daily' ? dailyDoc : weeklyDoc;
     const stats = periodicity === 'daily' ? dailyStats : weeklyStats;
     const currentGroups = periodicity === 'daily' ? dailyTaskGroups : weeklyTaskGroups;
@@ -457,6 +478,7 @@ export const TodayPage: React.FC = () => {
 
   const handleRenameGroup = async (groupId: string, newName: string, periodicity: 'daily' | 'weekly') => {
     if (!user) return;
+    assertCurrentPeriod();
     const currentGroups = periodicity === 'daily' ? dailyTaskGroups : weeklyTaskGroups;
     const updatedGroups = currentGroups.map(g => g.id === groupId ? { ...g, name: newName } : g);
 
@@ -465,6 +487,7 @@ export const TodayPage: React.FC = () => {
 
   const handleReorderHabitsInGroup = async (groupId: string, newHabitOrder: string[], periodicity: 'daily' | 'weekly') => {
     if (!user) return;
+    assertCurrentPeriod();
     const currentGroups = periodicity === 'daily' ? dailyTaskGroups : weeklyTaskGroups;
     const updatedGroups = currentGroups.map(g => g.id === groupId ? { ...g, habitIds: newHabitOrder } : g);
 
@@ -474,6 +497,7 @@ export const TodayPage: React.FC = () => {
   // --- Individual Task Actions ---
   const handleToggle = async (id: string, periodicity: 'daily' | 'weekly', current: boolean) => {
     if (!user || isReorderMode) return;
+    assertCurrentPeriod();
     const key = periodicity === 'daily' ? dailyKey : weeklyKey;
     const doc = periodicity === 'daily' ? dailyDoc : weeklyDoc;
     const stats = periodicity === 'daily' ? dailyStats : weeklyStats;
@@ -514,6 +538,7 @@ export const TodayPage: React.FC = () => {
 
   const handleSubToggle = async (id: string, periodicity: 'daily' | 'weekly', subIndex: number) => {
     if (!user || isReorderMode) return;
+    assertCurrentPeriod();
     const key = periodicity === 'daily' ? dailyKey : weeklyKey;
     const doc = periodicity === 'daily' ? dailyDoc : weeklyDoc;
     const stats = periodicity === 'daily' ? dailyStats : weeklyStats;
@@ -554,6 +579,7 @@ export const TodayPage: React.FC = () => {
 
   const handleIncrementWeeklyCount = async (id: string) => {
     if (!user || isReorderMode) return;
+    assertCurrentPeriod();
     const key = weeklyKey;
     const doc = weeklyDoc;
     const stats = weeklyStats;
@@ -589,6 +615,7 @@ export const TodayPage: React.FC = () => {
 
   const handleDecrementWeeklyCount = async (id: string) => {
     if (!user || isReorderMode) return;
+    assertCurrentPeriod();
     const key = weeklyKey;
     const doc = weeklyDoc;
     const stats = weeklyStats;
@@ -625,6 +652,7 @@ export const TodayPage: React.FC = () => {
 
   const handleReorderTopLevel = async (newTopLevelItems: TopLevelItem[], periodicity: 'daily' | 'weekly') => {
     if (!user) return;
+    assertCurrentPeriod();
     const currentGroups = periodicity === 'daily' ? dailyTaskGroups : weeklyTaskGroups;
     const newHabitOrder = newTopLevelItems.map(item => item.id);
     await updateTaskGroupsAndOrderAndSettings(periodicity, currentGroups, newHabitOrder);
@@ -632,6 +660,7 @@ export const TodayPage: React.FC = () => {
 
   const handleDelete = async (id: string, name: string, periodicity: 'daily' | 'weekly', isOneOff: boolean) => {
     if (!user) return;
+    assertCurrentPeriod();
     
     if (isOneOff) {
       const key = periodicity === 'daily' ? dailyKey : weeklyKey;
@@ -671,6 +700,7 @@ export const TodayPage: React.FC = () => {
 
   const confirmDelete = async () => {
     if (!user || !deleteConfirm) return;
+    assertCurrentPeriod();
     const { id, periodicity } = deleteConfirm;
     const key = periodicity === 'daily' ? dailyKey : weeklyKey;
     const doc = periodicity === 'daily' ? dailyDoc : weeklyDoc;
@@ -725,6 +755,7 @@ export const TodayPage: React.FC = () => {
     multiplicity: number;
   }) => {
     if (!user || !editingHabit) return;
+    assertCurrentPeriod();
 
     const habitId = editingHabit.id;
     const wasOneOff = editingHabit.isOneOff;
@@ -949,6 +980,7 @@ export const TodayPage: React.FC = () => {
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newName.trim() || isSubmitting) return;
+    assertCurrentPeriod();
 
     if (selectedGroupId === 'new' && !newGroupName.trim()) {
       setAddError("Please enter a name for the new group");
@@ -1060,13 +1092,14 @@ export const TodayPage: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (loadError) return <DataLoadError />;
+
+  if (loading || loadedPeriod !== period) {
     return (
       <StateFeedback kind="loading" />
     );
   }
 
-  if (loadError) return <DataLoadError />;
 
   return (
     <div className="app-home-content min-w-0">
@@ -1088,19 +1121,19 @@ export const TodayPage: React.FC = () => {
       )}
 
       {/* Daily Habits Section */}
-      <section className="mb-12">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-2.5">
+      <section className="ui-section-card ui-section-card--compact habit-section mb-6">
+        <div className="habit-section-header flex justify-between items-center mb-3 gap-1.5">
+          <div className="flex items-center min-w-0 gap-1.5">
             <h2 className="ui-section-title text-xs font-bold uppercase tracking-[0.2em] text-ui-ink/30">
               Daily habits
             </h2>
             {dailyStats.to_do > 0 && (
-              <span className="ui-meta text-[11px] font-bold px-2 py-0.5 rounded-full bg-ui-section text-ui-ink/60">
+              <span className="ui-meta text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-ui-section text-ui-ink/60 whitespace-nowrap">
                 {dailyStats.done}/{dailyStats.to_do} pts
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center shrink-0 gap-1">
             {/* Grouping Mode Toggle */}
             <button
               type="button"
@@ -1225,19 +1258,19 @@ export const TodayPage: React.FC = () => {
       </section>
 
       {/* Weekly Habits Section */}
-      <section className="mb-12">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-2.5">
+      <section className="ui-section-card ui-section-card--compact habit-section mb-6">
+        <div className="habit-section-header flex justify-between items-center mb-3 gap-1.5">
+          <div className="flex items-center min-w-0 gap-1.5">
             <h2 className="ui-section-title text-xs font-bold uppercase tracking-[0.2em] text-ui-ink/30">
               Weekly habits
             </h2>
             {weeklyStats.to_do > 0 && (
-              <span className="ui-meta text-[11px] font-bold px-2 py-0.5 rounded-full bg-ui-section text-ui-ink/60">
+              <span className="ui-meta text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-ui-section text-ui-ink/60 whitespace-nowrap">
                 {weeklyStats.done}/{weeklyStats.to_do} pts
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center shrink-0 gap-1">
             <button
               type="button"
               onClick={() => {

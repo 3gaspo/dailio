@@ -73,6 +73,7 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
   return (
     <div className={cn(
       "flex flex-col bg-white dark:bg-white/5 rounded-2xl border shadow-xs overflow-hidden transition-all",
+      !isReorderMode && !isExpanded && "ui-interactive-surface",
       hasOrangeSubtask
         ? (isExpanded 
             ? "border-orange-500/35 dark:border-orange-400/35 ring-2 ring-orange-500/20 dark:ring-orange-400/20" 
@@ -158,7 +159,7 @@ export const TaskGroupRow: React.FC<TaskGroupRowProps> = ({
             <span 
               title={group.name}
               className={cn(
-                "font-bold text-base truncate transition-colors",
+                "task-group-name font-bold transition-colors",
                 hasOrangeSubtask
                   ? (isAllCompleted ? "text-orange-500/40 dark:text-orange-400/40 line-through" : "text-orange-500 dark:text-orange-400")
                   : (isAllCompleted ? "line-through text-ui-ink/40" : "text-ui-ink")

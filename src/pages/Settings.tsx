@@ -1,4 +1,6 @@
 import { ActionButton } from '@3gaspo/app-ui/ActionButton';
+import { HelpSection } from '@3gaspo/app-ui/Tutorial';
+import { featureGuide } from '../featureGuide';
 import { formatPercent } from '@3gaspo/app-ui/formats';
 import { ValidatedForm } from '../components/ValidatedForm';
 import { SettingsSwitch } from '../components/SettingsSwitch';
@@ -295,6 +297,8 @@ export const SettingsPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          <HelpSection appName="Dailio" sections={featureGuide} />
 
           <button
             onClick={() => auth.signOut()}

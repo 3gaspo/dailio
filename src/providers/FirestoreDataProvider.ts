@@ -2,6 +2,7 @@ import { getFirestore, initializeFirestore, collection, doc, documentId, getDoc,
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { DataProvider, Habit, PeriodDoc, Periodicity, Category, UserSettings } from '../types';
 import { getCategoryDefaultColor } from '../utils/categoryUtils';
+import { DEFAULT_THEME } from '@3gaspo/app-ui/themePreference';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -46,9 +47,10 @@ export class FirestoreDataProvider implements DataProvider {
     const d = doc(this.db, 'users', uid, 'settings', 'general');
     const snap = await getDoc(d);
     if (snap.exists()) {
-      return { dailyObjective: 0.8, weeklyObjective: 0.8, theme: 'light', ...snap.data() } as UserSettings;
+      const settings = snap.data();
+      return { dailyObjective: 0.8, weeklyObjective: 0.8, ...settings, theme: settings.theme ?? DEFAULT_THEME } as UserSettings;
     }
-    return { dailyObjective: 0.8, weeklyObjective: 0.8, theme: 'light' };
+    return { dailyObjective: 0.8, weeklyObjective: 0.8, theme: DEFAULT_THEME };
   }
 
   async updateSettings(uid: string, settings: Partial<UserSettings>): Promise<void> {
