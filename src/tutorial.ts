@@ -12,31 +12,31 @@ export const tutorialPages = [
     title: 'Today',
     actions: [
       { icon: Plus, text: 'Add a habit or task', primary: true },
-      { icon: Check, text: 'Tick off habits and their steps' },
-      { icon: Repeat, text: 'Weekly habits reset on Monday. Use the counter to log repeats.' },
-      { icon: CalendarClock, text: 'One-off tasks are only due today or this week' },
+      { icon: Check, text: 'Tick off habits and steps' },
+      { icon: Repeat, text: 'Weekly habits reset Monday' },
+      { icon: CalendarClock, text: 'One-off lasts a day or week' },
     ],
   },
   {
     icon: Calendar,
     title: 'Calendar',
     actions: [
-      { icon: Calendar, text: 'Pick a day or week to review or edit it' },
+      { icon: Calendar, text: 'Pick a day or week to edit' },
       { icon: ToggleRight, text: 'Mark a period as absent' },
     ],
     legend: [
-      { color: 'var(--color-emerald-500)', text: 'Green · complete' },
-      { color: 'var(--color-amber-400)', text: 'Amber · target met, tasks left' },
-      { color: 'var(--color-red-500)', text: 'Red · past, target missed' },
-      { color: 'var(--ui-section)', text: 'Grey · absent or ungraded' },
+      { color: 'var(--color-emerald-500)', colourName: 'Green', text: 'All complete' },
+      { color: 'var(--color-amber-400)', colourName: 'Amber', text: 'Goal met' },
+      { color: 'var(--color-red-500)', colourName: 'Red', text: 'Past, below goal' },
+      { color: 'var(--ui-section)', colourName: 'Grey', text: 'No score' },
     ],
   },
   {
     icon: BarChart3,
     title: 'Statistics',
     actions: [
-      { icon: TrendingUp, text: 'Track daily and weekly progress' },
-      { icon: PieChart, text: 'Compare completion by category' },
+      { icon: TrendingUp, text: 'Track daily or weekly trends' },
+      { icon: PieChart, text: 'Compare category rates' },
     ],
   },
   {
@@ -45,7 +45,7 @@ export const tutorialPages = [
     actions: [
       { icon: Target, text: 'Set daily and weekly goals' },
       { icon: Palette, text: 'Manage habit categories' },
-      { icon: Download, text: 'Export your progress as CSV' },
+      { icon: Download, text: 'Export progress as CSV' },
     ],
   },
 ] as const satisfies TutorialPages;
