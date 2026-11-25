@@ -1,4 +1,5 @@
 import { ActionButton } from '@3gaspo/app-ui/ActionButton';
+import { SettingsDisclosure } from '@3gaspo/app-ui/SettingsDisclosure';
 import { HelpSection } from '@3gaspo/app-ui/Tutorial';
 import { featureGuide } from '../featureGuide';
 import { formatPercent } from '@3gaspo/app-ui/formats';
@@ -221,9 +222,8 @@ export const SettingsPage: React.FC = () => {
             </div>
           </section>
 
-          <section className="ui-section-card bg-ui-section p-8 rounded-[32px] mb-8">
-            <h2 className="ui-section-title text-xs font-bold uppercase tracking-[0.2em] text-ui-ink/30 mb-6">Categories</h2>
-            <div className="space-y-4 mb-6">
+          <SettingsDisclosure label="Categories" className="mb-8">
+            <div className="space-y-4">
               {categories.map(cat => {
                 const currentColor = getCategoryColor(cat);
                 const textColor = getContrastColor(currentColor);
@@ -284,7 +284,7 @@ export const SettingsPage: React.FC = () => {
                 </button>
               </div>
             </ValidatedForm>
-          </section>
+          </SettingsDisclosure>
 
           <div className="ui-section-card bg-ui-section p-8 rounded-[32px] mb-8">
             <div className="flex items-center gap-4 mb-2">

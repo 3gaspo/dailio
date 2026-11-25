@@ -29,6 +29,8 @@ La racine `/` redirige vers l’accueil. La connexion s’affiche lorsqu’aucun
 
 Un tutoriel présente le but de l’app, puis les fonctions principales de ses quatre onglets avec leurs icônes. Il s’ouvre à la première visite de l’accueil après connexion et sa fermeture est mémorisée pour ce compte dans le navigateur. La section Help de Settings regroupe `View tutorial` et `Detailed functionalities`, qui ouvre un guide des parcours et des calculs de l’app.
 
+Après le tutoriel, `Starter habits` propose des habitudes quotidiennes et hebdomadaires à partir de trois questions facultatives. L’utilisateur choisit lesquelles ajouter ou passe cette étape. Ce choix est mémorisé avec les données du compte et une réinitialisation complète permet de recommencer.
+
 ## Stack et organisation
 
 React 19, TypeScript 5.8, Vite 6, Tailwind CSS 4, React Router, Lucide et Firebase Authentication / Firestore, avec Recharts pour les graphiques.
@@ -103,7 +105,7 @@ L’accueil se réactualise à minuit local et au retour dans l’onglet. Les co
 
 ## Interface partagée
 
-L’application utilise `@3gaspo/app-ui`, actuellement en version 0.1.12, pour la navigation, les titres, dialogues, formulaires, commandes, retours d’état et formats visibles. Inter et Source Sans 3 sont hébergées avec l’application. Source Sans 3 sert au titre portant le nom de l’app, et Inter au reste de l’interface. Les dates affichées utilisent `en-GB` et les heures le format 24 h ; les formats de stockage et d’export restent propres à l’application.
+L’application utilise `@3gaspo/app-ui` pour la navigation, les titres, dialogues, formulaires, commandes, retours d’état et formats visibles. Inter et Source Sans 3 sont hébergées avec l’application. Source Sans 3 sert au titre portant le nom de l’app, et Inter au reste de l’interface. Les dates affichées utilisent `en-GB` et les heures le format 24 h ; les formats de stockage et d’export restent propres à l’application.
 
 L’archive est incluse dans [vendor/](vendor/) et référencée par `package.json` et `package-lock.json`. Ce dépôt est installable et déployable seul : aucun accès au dépôt source voisin `app-ui` ni à un registre privé n’est nécessaire. Relancer `npm ci` après un pull qui change les dépendances. La vérification du package partagé s’exécute automatiquement avant le build.
 

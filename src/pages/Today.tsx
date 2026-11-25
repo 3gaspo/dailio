@@ -1,5 +1,6 @@
 import { ConfirmDelete } from '@3gaspo/app-ui/ConfirmDelete';
 import { ACTIONS } from '@3gaspo/app-ui/labels';
+import { useHomeTutorialComplete } from '@3gaspo/app-ui/Tutorial';
 import { useLocalDay } from '@3gaspo/app-ui/useLocalDay';
 import { ValidatedForm } from '../components/ValidatedForm';
 import { StateFeedback, DataLoadError } from '../components/StateFeedback';
@@ -18,6 +19,7 @@ import { motion, Reorder } from 'motion/react';
 import { TaskGroupRow } from '../components/TaskGroupRow';
 import { HabitRow } from '../components/HabitRow';
 import { EditHabitModal } from '../components/EditHabitModal';
+import { StarterHabitsDialog } from '../components/StarterHabitsDialog';
 import { cn } from '../utils/cn';
 
 interface TopLevelItem {
@@ -99,7 +101,8 @@ function buildTopLevelItems(
 export const TodayPage: React.FC = () => {
   const habitFormId = useId();
   const groupFormId = useId();
-  const { user, data, categories, settings } = useApp();
+  const { user, data, categories, settings, completeStarterHabits } = useApp();
+  const homeTutorialComplete = useHomeTutorialComplete();
   const today = useLocalDay();
   const [loadedPeriod, setLoadedPeriod] = useState('');
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -1103,6 +1106,12 @@ export const TodayPage: React.FC = () => {
 
   return (
     <div className="app-home-content min-w-0">
+      {user && homeTutorialComplete && !settings.starterHabitsHandled && (
+        <StarterHabitsDialog categories={categories} habits={habits} onComplete={async selected => {
+          await completeStarterHabits(selected);
+          void fetchData();
+        }} />
+      )}
       <header className="app-home-header">
         <h1 className="app-brand-title">Dailio</h1>
       </header>

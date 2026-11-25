@@ -20,6 +20,8 @@ export interface Habit {
   isAntiTask?: boolean;
 }
 
+export type StarterHabit = Pick<Habit, 'name' | 'periodicity' | 'categoryId'>;
+
 export interface OneOffHabit {
   id: string;
   name: string;
@@ -66,6 +68,7 @@ export interface UserSettings {
   weeklyObjective: number; // 0 to 1
   theme?: 'light' | 'dark';
   categoriesInitialized?: boolean;
+  starterHabitsHandled?: boolean;
   defaultDailyHabitOrder?: string[];
   defaultDailyTaskGroups?: TaskGroup[];
   defaultWeeklyHabitOrder?: string[];
@@ -76,6 +79,7 @@ export interface DataProvider {
   // Habits
   getHabits: (uid: string) => Promise<Habit[]>;
   addHabit: (uid: string, habit: Omit<Habit, 'id'>) => Promise<string>;
+  completeStarterHabits: (uid: string, selected: readonly StarterHabit[]) => Promise<void>;
   updateHabit: (uid: string, habitId: string, data: Partial<Habit>) => Promise<void>;
   deleteHabit: (uid: string, habitId: string) => Promise<void>;
   setHabitDeletedFromPeriodKey: (uid: string, habitId: string, periodKey: string) => Promise<void>;

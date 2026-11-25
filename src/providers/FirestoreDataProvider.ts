@@ -1,8 +1,9 @@
-import { getFirestore, initializeFirestore, collection, doc, documentId, getDoc, getDocs, setDoc, updateDoc, query, where, deleteDoc, writeBatch, deleteField } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, collection, doc, documentId, getDoc, getDocs, setDoc, updateDoc, query, where, deleteDoc, writeBatch, deleteField, runTransaction } from 'firebase/firestore';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { DataProvider, Habit, PeriodDoc, Periodicity, Category, UserSettings } from '../types';
+import { DataProvider, Habit, PeriodDoc, Periodicity, Category, UserSettings, StarterHabit } from '../types';
 import { getCategoryDefaultColor } from '../utils/categoryUtils';
 import { DEFAULT_THEME } from '@3gaspo/app-ui/themePreference';
+import { buildStarterHabits } from '../utils/starterHabits';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -71,6 +72,20 @@ export class FirestoreDataProvider implements DataProvider {
     return newDoc.id;
   }
 
+  async completeStarterHabits(uid: string, selected: readonly StarterHabit[]): Promise<void> {
+    const settings = doc(this.db, 'users', uid, 'settings', 'general');
+    const habits = collection(this.db, 'users', uid, 'habits');
+    const existing = selected.length ? await this.getHabits(uid) : [];
+    const additions = buildStarterHabits(selected, existing);
+
+    await runTransaction(this.db, async transaction => {
+      const snapshot = await transaction.get(settings);
+      if (snapshot.data()?.starterHabitsHandled) return;
+      for (const habit of additions) transaction.set(doc(habits), cleanData(habit));
+      transaction.set(settings, { starterHabitsHandled: true }, { merge: true });
+    });
+  }
+
   async updateHabit(uid: string, habitId: string, data: Partial<Habit>): Promise<void> {
     const d = doc(this.db, 'users', uid, 'habits', habitId);
     const updatePayload: any = { ...data };
@@ -135,7 +150,10 @@ export class FirestoreDataProvider implements DataProvider {
       
       const categories = await getDocs(collection(this.db, 'users', uid, 'categories'));
       categories.forEach(d => batch.delete(d.ref));
-      batch.set(doc(this.db, 'users', uid, 'settings', 'general'), { categoriesInitialized: false }, { merge: true });
+      batch.set(doc(this.db, 'users', uid, 'settings', 'general'), {
+        categoriesInitialized: false,
+        starterHabitsHandled: false,
+      }, { merge: true });
     } else {
       // history only: update habits createdAt to "now"
       // so they don't show up as red in the past.

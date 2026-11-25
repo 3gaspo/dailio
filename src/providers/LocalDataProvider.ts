@@ -1,6 +1,14 @@
-import { DataProvider, Habit, PeriodDoc, Periodicity, Category, UserSettings, ResetOption } from '../types';
+import { DataProvider, Habit, PeriodDoc, Periodicity, Category, UserSettings, ResetOption, StarterHabit } from '../types';
 import { getCategoryDefaultColor } from '../utils/categoryUtils';
 import { DEFAULT_THEME } from '@3gaspo/app-ui/themePreference';
+import { buildStarterHabits } from '../utils/starterHabits';
+
+interface HabitStorage {
+  habits: Habit[];
+  starterHabitsHandled?: boolean;
+}
+
+const newHabitId = () => Math.random().toString(36).slice(2, 11);
 
 export class LocalDataProvider implements DataProvider {
   private getStorageKey(uid: string, type: string) {
@@ -9,35 +17,55 @@ export class LocalDataProvider implements DataProvider {
 
   async getSettings(uid: string): Promise<UserSettings> {
     const data = localStorage.getItem(this.getStorageKey(uid, 'settings'));
-    if (!data) {
-      return { dailyObjective: 0.8, weeklyObjective: 0.8, theme: DEFAULT_THEME };
-    }
-    const settings = JSON.parse(data);
-    if (!settings.theme) settings.theme = DEFAULT_THEME;
+    const settings = this.readSettings(data);
+    if (this.readHabitStorage(uid).starterHabitsHandled) settings.starterHabitsHandled = true;
     return settings;
   }
 
+  private readSettings(data: string | null): UserSettings {
+    const settings = data ? JSON.parse(data) : { dailyObjective: 0.8, weeklyObjective: 0.8 };
+    return { ...settings, theme: settings.theme ?? DEFAULT_THEME };
+  }
+
   async updateSettings(uid: string, settings: Partial<UserSettings>): Promise<void> {
-    const current = await this.getSettings(uid);
+    const current = this.readSettings(localStorage.getItem(this.getStorageKey(uid, 'settings')));
     const updated = { ...current, ...settings };
     localStorage.setItem(this.getStorageKey(uid, 'settings'), JSON.stringify(updated));
   }
 
-  async getHabits(uid: string): Promise<Habit[]> {
+  private readHabitStorage(uid: string): HabitStorage {
     const data = localStorage.getItem(this.getStorageKey(uid, 'habits'));
-    return data ? JSON.parse(data) : [];
+    const stored = data ? JSON.parse(data) : [];
+    return Array.isArray(stored) ? { habits: stored } : stored;
+  }
+
+  private writeHabitStorage(uid: string, state: HabitStorage) {
+    localStorage.setItem(this.getStorageKey(uid, 'habits'), JSON.stringify(state.starterHabitsHandled ? state : state.habits));
+  }
+
+  async getHabits(uid: string): Promise<Habit[]> {
+    return this.readHabitStorage(uid).habits;
+  }
+
+  async completeStarterHabits(uid: string, selected: readonly StarterHabit[]): Promise<void> {
+    const state = this.readHabitStorage(uid);
+    if (state.starterHabitsHandled) return;
+    const additions = buildStarterHabits(selected, state.habits).map(habit => ({ ...habit, id: newHabitId() }));
+    // Keep the additions and the dismissal in one storage write.
+    this.writeHabitStorage(uid, { habits: [...state.habits, ...additions], starterHabitsHandled: true });
   }
 
   async addHabit(uid: string, habit: Omit<Habit, 'id'>): Promise<string> {
-    const habits = await this.getHabits(uid);
-    const newHabit = { ...habit, id: Math.random().toString(36).substr(2, 9) };
-    habits.push(newHabit as Habit);
-    localStorage.setItem(this.getStorageKey(uid, 'habits'), JSON.stringify(habits));
+    const state = this.readHabitStorage(uid);
+    const newHabit = { ...habit, id: newHabitId() };
+    state.habits.push(newHabit);
+    this.writeHabitStorage(uid, state);
     return newHabit.id;
   }
 
   async updateHabit(uid: string, habitId: string, data: Partial<Habit>): Promise<void> {
-    const habits = await this.getHabits(uid);
+    const state = this.readHabitStorage(uid);
+    const { habits } = state;
     const index = habits.findIndex(h => h.id === habitId);
     if (index !== -1) {
       const updated = { ...habits[index], ...data };
@@ -45,31 +73,30 @@ export class LocalDataProvider implements DataProvider {
         delete updated.categoryId;
       }
       habits[index] = updated;
-      localStorage.setItem(this.getStorageKey(uid, 'habits'), JSON.stringify(habits));
+      this.writeHabitStorage(uid, state);
     }
   }
 
   async deleteHabit(uid: string, habitId: string): Promise<void> {
-    const habits = await this.getHabits(uid);
-    const filtered = habits.filter(h => h.id !== habitId);
-    localStorage.setItem(this.getStorageKey(uid, 'habits'), JSON.stringify(filtered));
+    const state = this.readHabitStorage(uid);
+    this.writeHabitStorage(uid, { ...state, habits: state.habits.filter(h => h.id !== habitId) });
   }
 
   async setHabitDeletedFromPeriodKey(uid: string, habitId: string, periodKey: string): Promise<void> {
-    const habits = await this.getHabits(uid);
-    const habit = habits.find(h => h.id === habitId);
+    const state = this.readHabitStorage(uid);
+    const habit = state.habits.find(h => h.id === habitId);
     if (habit) {
       habit.deletedFromPeriodKey = periodKey;
-      localStorage.setItem(this.getStorageKey(uid, 'habits'), JSON.stringify(habits));
+      this.writeHabitStorage(uid, state);
     }
   }
 
   async updateHabitOrder(uid: string, habitId: string, order: number): Promise<void> {
-    const habits = await this.getHabits(uid);
-    const habit = habits.find(h => h.id === habitId);
+    const state = this.readHabitStorage(uid);
+    const habit = state.habits.find(h => h.id === habitId);
     if (habit) {
       habit.order = order;
-      localStorage.setItem(this.getStorageKey(uid, 'habits'), JSON.stringify(habits));
+      this.writeHabitStorage(uid, state);
     }
   }
 
@@ -121,12 +148,12 @@ export class LocalDataProvider implements DataProvider {
     // If history only, we also need to update habit createdAt to "now"
     // so they don't show up as red in the past.
     if (option === 'history') {
-      const habits = await this.getHabits(uid);
+      const state = this.readHabitStorage(uid);
       const now = new Date();
-      habits.forEach(h => {
+      state.habits.forEach(h => {
         h.createdAt = now;
       });
-      localStorage.setItem(this.getStorageKey(uid, 'habits'), JSON.stringify(habits));
+      this.writeHabitStorage(uid, state);
     }
   }
 

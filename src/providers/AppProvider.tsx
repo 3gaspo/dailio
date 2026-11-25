@@ -1,7 +1,7 @@
 import { DataLoadError, StateFeedback } from '../components/StateFeedback';
 import { DEFAULT_THEME } from '@3gaspo/app-ui/themePreference';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { AuthProvider, Category, DataProvider, User, UserSettings } from '../types';
+import { AuthProvider, Category, DataProvider, StarterHabit, User, UserSettings } from '../types';
 import { LocalAuthProvider } from './LocalAuthProvider';
 import { LocalDataProvider } from './LocalDataProvider';
 import { FirebaseAuthProvider } from './FirebaseAuthProvider';
@@ -14,6 +14,7 @@ interface AppContextType {
   categories: Category[];
   settings: UserSettings;
   updateSettings: (settings: Partial<UserSettings>) => Promise<void>;
+  completeStarterHabits: (selected: readonly StarterHabit[]) => Promise<void>;
   refreshCategories: () => Promise<void>;
   isDevMode: boolean;
   loading: boolean;
@@ -70,6 +71,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const completeStarterHabits = async (selected: readonly StarterHabit[]) => {
+    if (!state?.user) return;
+    const { user, data } = state;
+    await data.completeStarterHabits(user.uid, selected);
+    setState(prev => prev?.user?.uid === user.uid
+      ? { ...prev, settings: { ...prev.settings, starterHabitsHandled: true } }
+      : prev);
+  };
+
   useEffect(() => {
     let active = true;
     let version = 0;
@@ -117,7 +127,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   if (!state) return <div className="app-page">{loadError ? <DataLoadError /> : <StateFeedback kind="loading" />}</div>;
 
   return (
-    <AppContext.Provider value={{ ...state, refreshCategories, updateSettings, settingsError, loadError, reportLoadError }}>
+    <AppContext.Provider value={{ ...state, refreshCategories, updateSettings, completeStarterHabits, settingsError, loadError, reportLoadError }}>
       {children}
     </AppContext.Provider>
   );
