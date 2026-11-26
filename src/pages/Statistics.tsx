@@ -1,3 +1,4 @@
+import { appStorage } from '@3gaspo/app-ui/guestSession';
 import { formatDate, formatPercent, formatNumber } from '@3gaspo/app-ui/formats';
 import { StateFeedback } from '../components/StateFeedback';
 import React, { useEffect, useState, useMemo } from 'react';
@@ -34,7 +35,7 @@ import {
 export const StatisticsPage: React.FC = () => {
   const { user, data, categories, settings, reportLoadError } = useApp();
   const [view, setView] = useState<'daily' | 'weekly'>(() => {
-    return (localStorage.getItem('dailio_stats_view') as 'daily' | 'weekly') || 'daily';
+    return (appStorage.getItem('dailio_stats_view') as 'daily' | 'weekly') || 'daily';
   });
   const [range, setRange] = useState<'month' | 'year'>('month');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
@@ -44,7 +45,7 @@ export const StatisticsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem('dailio_stats_view', view);
+    appStorage.setItem('dailio_stats_view', view);
   }, [view]);
 
   const fetchData = async () => {

@@ -37,9 +37,8 @@
 .task-group-name { min-width: 0; flex: 1; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: 16px; line-height: 22px; }
 .task-group-children { margin: 8px 0 8px 8px; padding: 4px 4px 4px 8px; }
 .calendar-task-main { display: grid; grid-template-columns: 28px minmax(0,1fr) 32px 32px; column-gap: 4px; align-items: center; }
-.calendar-task-main > span { min-width: 0; margin-left: 0; white-space: normal; overflow-wrap: anywhere; }
 .calendar-task-main > button:first-child { grid-column: 1; grid-row: 1; }
-.calendar-task-main > span { grid-column: 2; grid-row: 1; }
+.calendar-task-main > .habit-name { grid-column: 2; grid-row: 1; }
 .calendar-task-main > div { grid-column: 2 / -1; grid-row: 2; margin: 4px 0 0; }
 .calendar-task-main > button:nth-last-child(2) { grid-column: 3; grid-row: 1; }
 .calendar-task-main > button:last-child { grid-column: 4; grid-row: 1; }

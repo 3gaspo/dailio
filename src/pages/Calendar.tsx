@@ -1,3 +1,4 @@
+import { appStorage } from '@3gaspo/app-ui/guestSession';
 import { ActionButton } from '@3gaspo/app-ui/ActionButton';
 import { formatDate, formatMonth } from '@3gaspo/app-ui/formats';
 import { ValidatedForm } from '../components/ValidatedForm';
@@ -17,7 +18,7 @@ import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, fo
 export const CalendarPage: React.FC = () => {
   const { user, data, settings, reportLoadError } = useApp();
   const [view, setView] = useState<'daily' | 'weekly'>(() => {
-    return (localStorage.getItem('dailio_calendar_view') as 'daily' | 'weekly') || 'daily';
+    return (appStorage.getItem('dailio_calendar_view') as 'daily' | 'weekly') || 'daily';
   });
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -30,7 +31,7 @@ export const CalendarPage: React.FC = () => {
   const [editingHabit, setEditingHabit] = useState<any | null>(null);
 
   useEffect(() => {
-    localStorage.setItem('dailio_calendar_view', view);
+    appStorage.setItem('dailio_calendar_view', view);
   }, [view]);
 
   const fetchData = async () => {
@@ -307,7 +308,8 @@ export const CalendarPage: React.FC = () => {
         ))}
         {days.map(d => {
           const key = getDailyKey(d);
-          const stats = computePeriodStats(key, 'daily', habits, periodDocs[key] || null);
+          const periodDoc = periodDocs[key] || null;
+          const stats = computePeriodStats(key, 'daily', habits, periodDoc);
           const isCurrentMonth = isSameMonth(d, currentMonth);
           const today = startOfDay(new Date());
           const isToday = isSameDay(d, today);
@@ -318,23 +320,34 @@ export const CalendarPage: React.FC = () => {
           const isAbsent = stats.isAbsent;
 
           let cellColor = "bg-ui-section text-ui-ink/40";
+          let status = '';
           if (isAbsent) {
-            cellColor = "bg-ui-section text-ui-ink/40";
-          } else if (isDone) {
-            if (isPast || isToday) cellColor = "bg-emerald-500 text-white";
+            if (stats.to_do > 0 || periodDoc?.isAbsent) status = 'Absent';
+          } else if (isDone && (isPast || isToday)) {
+            cellColor = "bg-emerald-500 text-white";
+            status = 'All complete';
           } else if (isIncomplete) {
             if (objectiveMet) {
               cellColor = "bg-amber-400 text-white";
+              status = 'Goal met';
             } else if (isPast) {
               cellColor = "bg-red-500 text-white";
+              status = 'Below goal';
+            } else {
+              status = 'Habits pending';
             }
           }
+          const dayLabel = [formatDate(d, 'full'), status].filter(Boolean).join(', ');
 
           return (
             <ActionButton scope="dailio-calendar"
               key={key}
               onClick={() => setSelectedPeriod({ key, date: d })}
-              data-date={key} title={formatDate(d, 'long')} aria-current={isToday ? 'date' : undefined} aria-pressed={selectedPeriod?.key === key}
+              data-date={key}
+              title={dayLabel}
+              aria-label={dayLabel}
+              aria-current={isToday ? 'date' : undefined}
+              aria-pressed={selectedPeriod?.key === key}
               className={cn(
                 "ui-calendar-day transition-colors",
                 !isCurrentMonth && "opacity-20",
@@ -452,7 +465,7 @@ export const CalendarPage: React.FC = () => {
       <Modal
         isOpen={!!selectedPeriod}
         onClose={() => setSelectedPeriod(null)}
-        title={selectedPeriod ? (view === 'daily' ? formatDate(selectedPeriod.date, 'long') : `Week ${getISOWeek(selectedPeriod.date)}, ${getYear(selectedPeriod.date)}`) : ''}
+        title={selectedPeriod ? (view === 'daily' ? formatDate(selectedPeriod.date, 'short') : `Week ${getISOWeek(selectedPeriod.date)}, ${getYear(selectedPeriod.date)}`) : ''}
       >
         {selectedPeriod && (() => {
           const stats = computePeriodStats(selectedPeriod.key, view, habits, periodDocs[selectedPeriod.key] || null);
@@ -482,7 +495,7 @@ export const CalendarPage: React.FC = () => {
                       >
                         <Check size={14} strokeWidth={4} />
                       </ActionButton>
-                      <span className={cn("flex-1 min-w-0 ml-3 font-medium dark:text-white truncate", (h.completed || stats.isAbsent) && "text-ui-ink/30 line-through")}>{h.name}</span>
+                      <span title={h.name} className={cn("habit-name font-medium dark:text-white", (h.completed || stats.isAbsent) && "text-ui-ink/30 line-through")}>{h.name}</span>
                       
                       {view === 'weekly' && h.completed && (h.multiplicity <= 1 || !h.multiplicity) && !h.isAntiTask && (
                         <div className="flex items-center gap-1 shrink-0 mr-1">

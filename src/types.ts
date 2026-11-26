@@ -57,6 +57,7 @@ export interface AuthProvider {
   getUser: () => User | null;
   signIn: (email: string, pass: string) => Promise<void>;
   signUp: (email: string, pass: string) => Promise<void>;
+  resetPassword?: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   onAuthStateChanged: (callback: (user: User | null) => void, onError?: (error: unknown) => void) => () => void;
 }

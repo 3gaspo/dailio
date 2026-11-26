@@ -1,3 +1,5 @@
+import { GuestAccount } from '@3gaspo/app-ui/GuestAccount';
+import { isGuestSession } from '@3gaspo/app-ui/guestSession';
 import { ActionButton } from '@3gaspo/app-ui/ActionButton';
 import { SettingsDisclosure } from '@3gaspo/app-ui/SettingsDisclosure';
 import { HelpSection } from '@3gaspo/app-ui/Tutorial';
@@ -286,7 +288,7 @@ export const SettingsPage: React.FC = () => {
             </ValidatedForm>
           </SettingsDisclosure>
 
-          <div className="ui-section-card bg-ui-section p-8 rounded-[32px] mb-8">
+          {isGuestSession ? <GuestAccount /> : <div className="ui-section-card bg-ui-section p-8 rounded-[32px] mb-8">
             <div className="flex items-center gap-4 mb-2">
               <div className="w-12 h-12 bg-ui-primary rounded-full flex items-center justify-center text-ui-primary-text">
                 <User size={24} />
@@ -296,11 +298,11 @@ export const SettingsPage: React.FC = () => {
                 <p className="font-bold dark:text-white">{user.email}</p>
               </div>
             </div>
-          </div>
+          </div>}
 
           <HelpSection appName="Dailio" sections={featureGuide} />
 
-          <button
+          {!isGuestSession && <button
             onClick={() => auth.signOut()}
             className="ui-setting-action w-full flex items-center justify-between p-6 bg-ui-section rounded-[24px] hover:bg-black/10 dark:hover:bg-white/10 transition-colors group"
           >
@@ -310,7 +312,7 @@ export const SettingsPage: React.FC = () => {
               </div>
               <span className="font-bold dark:text-white">Disconnect / Sign out</span>
             </div>
-          </button>
+          </button>}
 
           <button
             onClick={handleExport}

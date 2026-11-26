@@ -1,3 +1,4 @@
+import { appStorage } from '@3gaspo/app-ui/guestSession';
 import { DataProvider, Habit, PeriodDoc, Periodicity, Category, UserSettings, ResetOption, StarterHabit } from '../types';
 import { getCategoryDefaultColor } from '../utils/categoryUtils';
 import { DEFAULT_THEME } from '@3gaspo/app-ui/themePreference';
@@ -16,7 +17,7 @@ export class LocalDataProvider implements DataProvider {
   }
 
   async getSettings(uid: string): Promise<UserSettings> {
-    const data = localStorage.getItem(this.getStorageKey(uid, 'settings'));
+    const data = appStorage.getItem(this.getStorageKey(uid, 'settings'));
     const settings = this.readSettings(data);
     if (this.readHabitStorage(uid).starterHabitsHandled) settings.starterHabitsHandled = true;
     return settings;
@@ -28,19 +29,19 @@ export class LocalDataProvider implements DataProvider {
   }
 
   async updateSettings(uid: string, settings: Partial<UserSettings>): Promise<void> {
-    const current = this.readSettings(localStorage.getItem(this.getStorageKey(uid, 'settings')));
+    const current = this.readSettings(appStorage.getItem(this.getStorageKey(uid, 'settings')));
     const updated = { ...current, ...settings };
-    localStorage.setItem(this.getStorageKey(uid, 'settings'), JSON.stringify(updated));
+    appStorage.setItem(this.getStorageKey(uid, 'settings'), JSON.stringify(updated));
   }
 
   private readHabitStorage(uid: string): HabitStorage {
-    const data = localStorage.getItem(this.getStorageKey(uid, 'habits'));
+    const data = appStorage.getItem(this.getStorageKey(uid, 'habits'));
     const stored = data ? JSON.parse(data) : [];
     return Array.isArray(stored) ? { habits: stored } : stored;
   }
 
   private writeHabitStorage(uid: string, state: HabitStorage) {
-    localStorage.setItem(this.getStorageKey(uid, 'habits'), JSON.stringify(state.starterHabitsHandled ? state : state.habits));
+    appStorage.setItem(this.getStorageKey(uid, 'habits'), JSON.stringify(state.starterHabitsHandled ? state : state.habits));
   }
 
   async getHabits(uid: string): Promise<Habit[]> {
@@ -102,7 +103,7 @@ export class LocalDataProvider implements DataProvider {
 
   async getPeriodDoc(uid: string, periodicity: Periodicity, periodKey: string): Promise<PeriodDoc | null> {
     const key = this.getStorageKey(uid, `period_${periodicity}_${periodKey}`);
-    const data = localStorage.getItem(key);
+    const data = appStorage.getItem(key);
     return data ? JSON.parse(data) : null;
   }
 
@@ -114,33 +115,33 @@ export class LocalDataProvider implements DataProvider {
       updatedAt: new Date()
     };
     const updated = { ...current, ...data, updatedAt: new Date() };
-    localStorage.setItem(this.getStorageKey(uid, `period_${periodicity}_${periodKey}`), JSON.stringify(updated));
+    appStorage.setItem(this.getStorageKey(uid, `period_${periodicity}_${periodKey}`), JSON.stringify(updated));
   }
 
   async getPeriodDocs(uid: string, periodicity: Periodicity, startKey: string, endKey: string): Promise<Record<string, PeriodDoc>> {
     const prefix = this.getStorageKey(uid, `period_${periodicity}_`);
     const periods: Record<string, PeriodDoc> = {};
-    for (const storageKey of Object.keys(localStorage)) {
+    for (const storageKey of appStorage.keys()) {
       if (!storageKey.startsWith(prefix)) continue;
       const key = storageKey.slice(prefix.length);
       if (key < startKey || key > endKey) continue;
-      const value = localStorage.getItem(storageKey);
+      const value = appStorage.getItem(storageKey);
       if (value) periods[key] = JSON.parse(value);
     }
     return periods;
   }
 
   async resetData(uid: string, option: 'history' | 'all'): Promise<void> {
-    const keys = Object.keys(localStorage);
+    const keys = appStorage.keys();
     keys.forEach(k => {
       if (option === 'all') {
         if (k.startsWith(`dailio_${uid}`)) {
-          localStorage.removeItem(k);
+          appStorage.removeItem(k);
         }
       } else {
         // history only: delete period docs but keep habits
         if (k.startsWith(`dailio_${uid}_period_`)) {
-          localStorage.removeItem(k);
+          appStorage.removeItem(k);
         }
       }
     });
@@ -158,9 +159,9 @@ export class LocalDataProvider implements DataProvider {
   }
 
   async getCategories(uid: string): Promise<Category[]> {
-    const data = localStorage.getItem(this.getStorageKey(uid, 'categories'));
+    const data = appStorage.getItem(this.getStorageKey(uid, 'categories'));
     if (data === null) {
-      const existingAccount = localStorage.getItem(this.getStorageKey(uid, 'settings')) !== null || localStorage.getItem(this.getStorageKey(uid, 'habits')) !== null;
+      const existingAccount = appStorage.getItem(this.getStorageKey(uid, 'settings')) !== null || appStorage.getItem(this.getStorageKey(uid, 'habits')) !== null;
       const defaults = existingAccount ? [] : [
         { id: 'cat_chores', name: 'Chores', color: '#EAB308' },
         { id: 'cat_sport', name: 'Sport', color: '#F97316' },
@@ -170,7 +171,7 @@ export class LocalDataProvider implements DataProvider {
         { id: 'cat_projects', name: 'Projects', color: '#A855F7' },
         { id: 'cat_hygiene', name: 'Hygiene', color: '#14B8A6' }
       ];
-      localStorage.setItem(this.getStorageKey(uid, 'categories'), JSON.stringify(defaults));
+      appStorage.setItem(this.getStorageKey(uid, 'categories'), JSON.stringify(defaults));
       return defaults;
     }
     const parsed: Category[] = JSON.parse(data);
@@ -185,7 +186,7 @@ export class LocalDataProvider implements DataProvider {
     const id = Math.random().toString(36).substr(2, 9);
     const catColor = color || getCategoryDefaultColor(name);
     categories.push({ id, name, color: catColor });
-    localStorage.setItem(this.getStorageKey(uid, 'categories'), JSON.stringify(categories));
+    appStorage.setItem(this.getStorageKey(uid, 'categories'), JSON.stringify(categories));
     return id;
   }
 
@@ -194,13 +195,13 @@ export class LocalDataProvider implements DataProvider {
     const cat = categories.find(c => c.id === categoryId);
     if (cat) {
       Object.assign(cat, data);
-      localStorage.setItem(this.getStorageKey(uid, 'categories'), JSON.stringify(categories));
+      appStorage.setItem(this.getStorageKey(uid, 'categories'), JSON.stringify(categories));
     }
   }
 
   async deleteCategory(uid: string, categoryId: string): Promise<void> {
     const categories = await this.getCategories(uid);
     const filtered = categories.filter(c => c.id !== categoryId);
-    localStorage.setItem(this.getStorageKey(uid, 'categories'), JSON.stringify(filtered));
+    appStorage.setItem(this.getStorageKey(uid, 'categories'), JSON.stringify(filtered));
   }
 }

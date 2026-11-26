@@ -1,3 +1,4 @@
+import { isGuestSession } from '@3gaspo/app-ui/guestSession';
 import { DataLoadError, StateFeedback } from '../components/StateFeedback';
 import { DEFAULT_THEME } from '@3gaspo/app-ui/themePreference';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
@@ -85,7 +86,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let version = 0;
     let unsubscribe = () => {};
     try {
-      const hasFirebase = !!import.meta.env.VITE_FIREBASE_API_KEY;
+      const hasFirebase = !isGuestSession && !!import.meta.env.VITE_FIREBASE_API_KEY;
       const auth = hasFirebase ? new FirebaseAuthProvider() : new LocalAuthProvider();
       const data = hasFirebase ? new FirestoreDataProvider() : new LocalDataProvider();
 
@@ -108,7 +109,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             user,
             categories,
             settings,
-            isDevMode: !hasFirebase,
+            isDevMode: !hasFirebase && !isGuestSession,
             loading: false
           });
         } catch (error) { if (active && current === version) reportLoadError(error); }

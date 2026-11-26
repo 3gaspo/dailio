@@ -6,5 +6,10 @@ export function AuthWindow() {
   const { user, auth, isDevMode } = useApp();
   const navigate = useNavigate();
   if (user) return null;
-  return <AuthShell appName="Dailio" logo="/dailio.svg" modal><AuthForm allowUsername={isDevMode} onAuthenticate={async (email, password, signUpMode) => { if (signUpMode) await auth.signUp(email, password); else await auth.signIn(email, password); navigate('/today'); }} /></AuthShell>;
+  return <AuthShell appName="Dailio" logo="/dailio.svg" modal>
+    <AuthForm allowUsername={isDevMode} onResetPassword={auth.resetPassword} onAuthenticate={async (email, password, signUpMode) => {
+      await (signUpMode ? auth.signUp(email, password) : auth.signIn(email, password));
+      navigate('/today');
+    }} />
+  </AuthShell>;
 }

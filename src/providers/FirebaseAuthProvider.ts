@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut, onAuthStateChanged } from 'firebase/auth';
 import { AuthProvider, User } from '../types';
 
 const firebaseConfig = {
@@ -31,6 +31,8 @@ export class FirebaseAuthProvider implements AuthProvider {
   async signUp(email: string, pass: string) {
     await createUserWithEmailAndPassword(this.auth, email, pass);
   }
+
+  resetPassword = (email: string) => sendPasswordResetEmail(this.auth, email);
 
   async signOut() {
     await signOut(this.auth);
