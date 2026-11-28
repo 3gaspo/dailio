@@ -115,8 +115,8 @@ export const EditHabitModal: React.FC<EditHabitModalProps> = ({
     <Modal isOpen={isOpen} onClose={onClose} title={isOneOff ? "Edit task" : "Edit habit"}>
       <ValidatedForm id={formId} onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-1">
-          <label className="ui-field-label text-[10px] font-bold uppercase tracking-widest text-ui-ink/40">Name</label>
-          <input
+          <label htmlFor={formId + "-field-1"} className="ui-field-label text-[10px] font-bold uppercase tracking-widest text-ui-ink/40">Name</label>
+          <input id={formId + "-field-1"}
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
@@ -155,12 +155,13 @@ export const EditHabitModal: React.FC<EditHabitModalProps> = ({
 
         {categories.length > 0 && (
           <div className="space-y-1">
-            <label className="ui-field-label text-[10px] font-bold uppercase tracking-widest text-ui-ink/40">Category</label>
+            <div className="ui-field-label text-[10px] font-bold uppercase tracking-widest text-ui-ink/40">Category</div>
             <CategoryDropdown
               categories={categories}
               value={categoryId}
               onChange={(val) => setCategoryId(val)}
               label=""
+              ariaLabel="Category"
             />
           </div>
         )}
@@ -183,6 +184,7 @@ export const EditHabitModal: React.FC<EditHabitModalProps> = ({
             {groupId === 'new' && (
               <input
                 type="text"
+                aria-label="New group name"
                 value={newGroupName}
                 onChange={e => setNewGroupName(e.target.value)}
                 placeholder="Enter new group name..."
@@ -195,11 +197,12 @@ export const EditHabitModal: React.FC<EditHabitModalProps> = ({
 
         <div className="flex items-center justify-between py-2 border-t border-ui-border">
           <div>
-            <div className="font-bold text-sm dark:text-white">One-off task</div>
+            <label htmlFor={formId + "-one-off"} className="font-bold text-sm dark:text-white">One-off task</label>
             <div className="ui-meta text-xs text-ui-ink/40">Only for this date/week</div>
           </div>
           <input
             type="checkbox"
+            id={formId + "-one-off"}
             checked={isOneOff}
             onChange={e => setIsOneOff(e.target.checked)}
             className="w-5 h-5 rounded border-black/20 text-black focus:ring-0"
@@ -208,11 +211,12 @@ export const EditHabitModal: React.FC<EditHabitModalProps> = ({
 
         <div className="flex items-center justify-between py-2 border-t border-ui-border">
           <div>
-            <div className="font-bold text-sm dark:text-white">Anti-task</div>
+            <label htmlFor={formId + "-anti-task"} className="font-bold text-sm dark:text-white">Anti-task</label>
             <div className="ui-meta text-xs text-ui-ink/40">Completed by default</div>
           </div>
           <input
             type="checkbox"
+            id={formId + "-anti-task"}
             checked={isAntiTask}
             onChange={e => setIsAntiTask(e.target.checked)}
             className="w-5 h-5 rounded border-black/20 text-black focus:ring-0"
@@ -221,12 +225,12 @@ export const EditHabitModal: React.FC<EditHabitModalProps> = ({
 
         <div className="space-y-1 py-2 border-t border-ui-border">
           <div className="flex justify-between items-center mb-1">
-            <label className="ui-field-label font-bold text-sm dark:text-white">Sub-steps</label>
+            <label htmlFor={formId + "-field-2"} className="ui-field-label font-bold text-sm dark:text-white">Sub-steps</label>
             <span className="ui-meta text-xs font-bold text-ui-ink/60">
               {multiplicity} {multiplicity === 1 ? 'step' : 'steps'}
             </span>
           </div>
-          <input
+          <input id={formId + "-field-2"}
             type="range"
             min="1"
             max="10"

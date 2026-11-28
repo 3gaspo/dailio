@@ -225,8 +225,9 @@ export const SettingsPage: React.FC = () => {
           </section>
 
           <SettingsDisclosure label="Categories" className="mb-8">
+            {error && <p role="alert" className="ui-error">{error}</p>}
             <div className="space-y-4">
-              {categories.map(cat => {
+              {categories.filter(cat => cat.name.trim().toLowerCase() !== 'uncategorized').map(cat => {
                 const currentColor = getCategoryColor(cat);
                 const textColor = getContrastColor(currentColor);
 

@@ -9,6 +9,7 @@ interface CategoryDropdownProps {
   value: string; // category id or '' or 'all'
   onChange: (value: string) => void;
   label?: string;
+  ariaLabel?: string;
   allLabel?: string;
   className?: string;
 }
@@ -18,6 +19,7 @@ export const CategoryDropdown: React.FC<CategoryDropdownProps> = ({
   value,
   onChange,
   label = "Filter by category",
+  ariaLabel,
   allLabel = "All categories",
   className
 }) => {
@@ -75,6 +77,7 @@ export const CategoryDropdown: React.FC<CategoryDropdownProps> = ({
       )}
 
       <button
+        aria-label={ariaLabel || label || "Category"}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}

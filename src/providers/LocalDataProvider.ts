@@ -175,13 +175,14 @@ export class LocalDataProvider implements DataProvider {
       return defaults;
     }
     const parsed: Category[] = JSON.parse(data);
-    return parsed.map(c => ({
+    return parsed.filter(c => c.name.trim().toLowerCase() !== 'uncategorized').map(c => ({
       ...c,
       color: c.color || getCategoryDefaultColor(c.name)
     }));
   }
 
   async addCategory(uid: string, name: string, color?: string): Promise<string> {
+    if (name.trim().toLowerCase() === 'uncategorized') throw new Error('Uncategorized is reserved for entries without a category.');
     const categories = await this.getCategories(uid);
     const id = Math.random().toString(36).substr(2, 9);
     const catColor = color || getCategoryDefaultColor(name);
@@ -191,6 +192,7 @@ export class LocalDataProvider implements DataProvider {
   }
 
   async updateCategory(uid: string, categoryId: string, data: Partial<Category>): Promise<void> {
+    if (data.name?.trim().toLowerCase() === 'uncategorized') throw new Error('Uncategorized is reserved for entries without a category.');
     const categories = await this.getCategories(uid);
     const cat = categories.find(c => c.id === categoryId);
     if (cat) {

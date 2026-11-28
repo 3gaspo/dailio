@@ -217,10 +217,11 @@ export class FirestoreDataProvider implements DataProvider {
       await setDoc(settingsRef, { categoriesInitialized: true }, { merge: true });
     }
 
-    return categories;
+    return categories.filter(category => category.name.trim().toLowerCase() !== 'uncategorized');
   }
 
   async addCategory(uid: string, name: string, color?: string): Promise<string> {
+    if (name.trim().toLowerCase() === 'uncategorized') throw new Error('Uncategorized is reserved for entries without a category.');
     const col = collection(this.db, 'users', uid, 'categories');
     const newDoc = doc(col);
     const catColor = color || getCategoryDefaultColor(name);
@@ -229,6 +230,7 @@ export class FirestoreDataProvider implements DataProvider {
   }
 
   async updateCategory(uid: string, categoryId: string, data: Partial<Category>): Promise<void> {
+    if (data.name?.trim().toLowerCase() === 'uncategorized') throw new Error('Uncategorized is reserved for entries without a category.');
     const d = doc(this.db, 'users', uid, 'categories', categoryId);
     await updateDoc(d, cleanData(data));
   }

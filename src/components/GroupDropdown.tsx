@@ -69,6 +69,7 @@ export const GroupDropdown: React.FC<GroupDropdownProps> = ({
       )}
 
       <button
+        aria-label={label || "Group"}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}

@@ -10,7 +10,7 @@ Les icônes utilisent un canevas de 512 × 512, un fond noir opaque et des forme
 
 - Habitudes quotidiennes ou hebdomadaires, tâches ponctuelles et anti-tâches à éviter.
 - Catégories colorées, filtre par catégorie, groupes et réorganisation des habitudes.
-- Multiplicité de 1 à 10 sous-étapes ; compteurs de répétitions pour les habitudes hebdomadaires concernées.
+- De 1 à 10 sous-étapes par habitude, au quotidien comme à la semaine. Pour un objectif de cinq verres d’eau, par exemple, régler cinq sous-étapes et cocher une case par verre. Après la première validation d’une habitude hebdomadaire ordinaire sans sous-étapes, `+1` permet de compter les réalisations supplémentaires.
 - Calendrier mensuel des journées et vue annuelle des semaines, avec édition des périodes et gestion des absences.
 - Objectifs quotidiens et hebdomadaires, ratios de complétion et statistiques.
 - Export CSV des compteurs quotidiens et hebdomadaires depuis le début de l’année courante.
@@ -25,11 +25,26 @@ Les icônes utilisent un canevas de 512 × 512, un fond noir opaque et des forme
 | `/statistics` | Statistics |
 | `/settings` | Settings : objectifs, catégories, thème, compte et export |
 
+Dans Settings, ouvrez le volet `Categories`, fermé par défaut, pour afficher et gérer les catégories d’habitudes.
+
 La racine `/` redirige vers l’accueil. La connexion s’affiche lorsqu’aucune session n’est active. Les écrans secondaires sont chargés à la demande.
 
 Un tutoriel présente le but de l’app, puis les fonctions principales de ses quatre onglets avec leurs icônes. Il s’ouvre à la première visite de l’accueil après connexion et sa fermeture est mémorisée pour ce compte dans le navigateur. La section Help de Settings regroupe `View tutorial` et `Detailed functionalities`, qui ouvre un guide des parcours et des calculs de l’app.
 
-Après le tutoriel, `Starter habits` propose des habitudes quotidiennes et hebdomadaires à partir de trois questions facultatives. L’utilisateur choisit lesquelles ajouter ou passe cette étape. Ce choix est mémorisé avec les données du compte et une réinitialisation complète permet de recommencer.
+Dans le calendrier mensuel, chaque case donne la date complète et, selon la journée, la progression ou l’absence dans son libellé accessible. Le dialogue affiche la date abrégée sur une ligne, par exemple `26 Nov 2026`. Les noms longs d’habitudes et de tâches occupent au plus deux lignes. Le nom complet reste accessible et disponible dans le formulaire d’édition.
+
+### Habitudes de démarrage
+
+`Starter habits` s’ouvre dans Today après la fermeture du tutoriel d’accueil, y compris si le compte l’a déjà vu dans ce navigateur. Le dialogue en anglais pose trois questions facultatives sur le chien, le sport et l’instrument de musique.
+
+| Fréquence | Suggestions |
+| --- | --- |
+| Daily | `Drink water` (Hygiene), `Stretch` (Sport), `Do the dishes` (Chores) et `Walk the dog` (Chores) si la réponse est Yes. |
+| Weekly | `Clean the house` et `Do the laundry` (Chores), `Read` (Culture), le sport saisi (Sport) et l’instrument sous la forme `Practise guitar` (Culture), selon les réponses. |
+
+Les suggestions sont toutes cochées au départ. L’utilisateur peut en décocher, confirmer avec `Add habits` ou choisir `Skip`. Les suggestions réutilisent les catégories existantes et sont ajoutées sans catégorie si la catégorie prévue est absente. Une habitude déjà enregistrée sous le même nom et à la même fréquence est écartée des suggestions. Les habitudes ajoutées sont modifiables dans Today. L’ajout ou le passage de l’étape est mémorisé avec les données du compte. Une réinitialisation complète permet de recommencer.
+
+Les questions et la sélection se trouvent dans [StarterHabitsDialog.tsx](src/components/StarterHabitsDialog.tsx), et les suggestions dans [starterHabits.ts](src/utils/starterHabits.ts).
 
 ## Stack et organisation
 
@@ -56,9 +71,13 @@ Le serveur de développement écoute sur le port 3000. Ouvrir `http://localhost:
 
 ## Configuration et données
 
-Sans `VITE_FIREBASE_API_KEY`, Dailio utilise les fournisseurs locaux. La fenêtre de connexion reste nécessaire : elle accepte un email ou un nom d’utilisateur en mode local, et le mot de passe n’y est pas vérifié. La présence de cette variable active le fournisseur Firebase ; renseigner alors toute la configuration.
+Sans `VITE_FIREBASE_API_KEY`, Dailio utilise les fournisseurs locaux. Pour une session de développement, la fenêtre de connexion accepte une adresse e-mail ou un nom d’utilisateur. Le fournisseur local ignore le mot de passe saisi. La présence de cette variable active le fournisseur Firebase et nécessite la configuration complète.
 
 Le mode local conserve ses données dans le `localStorage` du navigateur, sans synchronisation entre appareils. Sa session de développement n’est pas une authentification distante. Changer de mode de stockage ne transfère pas automatiquement ces données.
+
+Avec Firebase, `Forgot password?` envoie un lien de réinitialisation à l’adresse saisie. Le formulaire indique qu’une adresse est inconnue si Firebase le signale. Lorsque Firebase protège l’existence des comptes, l’accusé de réception reste générique.
+
+`Continue as guest` ouvre une session de test sans compte. Les données et réglages invités restent dans le `sessionStorage` de l’onglet, sans écriture dans Firestore. Ils sont conservés au rechargement et effacés à la fermeture de l’onglet ou après confirmation avec `End guest session` dans Settings.
 
 Pour utiliser Firebase, copier [.env.example](.env.example) vers `.env.local` et renseigner la configuration de l’application web :
 
@@ -72,6 +91,8 @@ VITE_FIREBASE_APP_ID=
 ```
 
 Activer l’authentification email/mot de passe et Firestore dans le projet Firebase concerné. Ces variables sont lues par Vite au démarrage et lors du build : redémarrer le serveur ou reconstruire après une modification. Conserver les fichiers d’environnement locaux hors Git.
+
+Dans Firebase Console → Authentication → Templates → Password reset, renseigner `Dailio` dans le champ `Sender name`. [Paramètres du modèle Firebase](https://docs.cloud.google.com/identity-platform/docs/reference/rest/v2/Config#EmailTemplate)
 
 ## Commandes et validation
 
@@ -105,7 +126,7 @@ L’accueil se réactualise à minuit local et au retour dans l’onglet. Les co
 
 ## Interface partagée
 
-L’application utilise `@3gaspo/app-ui` pour la navigation, les titres, dialogues, formulaires, commandes, retours d’état et formats visibles. Inter et Source Sans 3 sont hébergées avec l’application. Source Sans 3 sert au titre portant le nom de l’app, et Inter au reste de l’interface. Les dates affichées utilisent `en-GB` et les heures le format 24 h ; les formats de stockage et d’export restent propres à l’application.
+L’application utilise `@3gaspo/app-ui`, actuellement en version 0.1.23, pour la navigation, les titres, dialogues, formulaires, commandes, retours d’état et formats visibles. Inter et Source Sans 3 sont hébergées avec l’application. Source Sans 3 sert au titre portant le nom de l’app, et Inter au reste de l’interface. Les dates affichées utilisent `en-GB` et les heures le format 24 h ; les formats de stockage et d’export restent propres à l’application.
 
 L’archive est incluse dans [vendor/](vendor/) et référencée par `package.json` et `package-lock.json`. Ce dépôt est installable et déployable seul : aucun accès au dépôt source voisin `app-ui` ni à un registre privé n’est nécessaire. Relancer `npm ci` après un pull qui change les dépendances. La vérification du package partagé s’exécute automatiquement avant le build.
 
@@ -123,3 +144,9 @@ firebase deploy --only hosting
 ```
 
 Ajouter `--project ID_DU_PROJET` si aucun projet n’est sélectionné. Un `firebase deploy` sans restriction peut aussi publier les règles et index Firestore déclarés. Un retour à une version conservée dans l’historique Firebase Hosting restaure le site, pas les données.
+
+## Corrections du 28 novembre 2026
+
+Les champs du formulaire d’édition d’habitude sont associés à leurs libellés ; les commandes de catégorie, de groupe, de tâche ponctuelle, d’anti-tâche et de sous-étapes ont un nom accessible.
+
+`Uncategorized` est un regroupement virtuel, visible uniquement lorsqu'il contient des entrées. Il n'apparaît pas dans la gestion des catégories/types et ne peut pas y être créé, modifié ou supprimé. Les anciennes références restent conservées.

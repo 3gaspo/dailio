@@ -176,7 +176,7 @@ export const StatisticsPage: React.FC = () => {
 
     const categoryMap = new Map<string, { id: string; name: string; color: string; to_do: number; done: number }>();
     
-    categories.forEach(cat => {
+    categories.filter(cat => cat.name.trim().toLowerCase() !== 'uncategorized').forEach(cat => {
       categoryMap.set(cat.id, {
         id: cat.id,
         name: cat.name,
@@ -189,7 +189,7 @@ export const StatisticsPage: React.FC = () => {
     const uncategorizedKey = 'uncategorized';
     categoryMap.set(uncategorizedKey, {
       id: uncategorizedKey,
-      name: 'Non categorized',
+      name: 'Uncategorized',
       color: '#6B7280',
       to_do: 0,
       done: 0
@@ -286,8 +286,8 @@ export const StatisticsPage: React.FC = () => {
       rate: cat.to_do === 0 ? 0 : Math.round((cat.done / cat.to_do) * 100)
     }));
 
-    // Keep uncategorized if it has tasks or if there are no custom categories
-    return items.filter(cat => cat.id !== uncategorizedKey || cat.to_do > 0 || categories.length === 0);
+    // The virtual fallback is visible only when it contains entries.
+    return items.filter(cat => cat.id !== uncategorizedKey || cat.to_do > 0);
   }, [habits, categories, periodDocs, view, categoryRateTimeframe]);
 
   // 2. Compute Task Repartition across categories (for Pie chart)
@@ -296,7 +296,7 @@ export const StatisticsPage: React.FC = () => {
 
     const categoryMap = new Map<string, { id: string; name: string; color: string; count: number }>();
     
-    categories.forEach(cat => {
+    categories.filter(cat => cat.name.trim().toLowerCase() !== 'uncategorized').forEach(cat => {
       categoryMap.set(cat.id, {
         id: cat.id,
         name: cat.name,
@@ -308,7 +308,7 @@ export const StatisticsPage: React.FC = () => {
     const uncategorizedKey = 'uncategorized';
     categoryMap.set(uncategorizedKey, {
       id: uncategorizedKey,
-      name: 'Non categorized',
+      name: 'Uncategorized',
       color: '#6B7280',
       count: 0
     });
